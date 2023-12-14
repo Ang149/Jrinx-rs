@@ -1,7 +1,7 @@
 use core::ops::{BitAnd, BitOr, Not};
 mod mmio;
-
-pub trait InterruptController {
+pub use mmio::Mmio;
+pub trait Io {
     type Value: Copy
         + BitAnd<Output = Self::Value>
         + BitOr<Output = Self::Value>

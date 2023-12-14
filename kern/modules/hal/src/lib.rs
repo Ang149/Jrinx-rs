@@ -3,7 +3,7 @@
 extern crate alloc;
 
 mod arch;
-use core::time::Duration;
+use core::{time::Duration, ops::{BitAnd, BitOr, Not}};
 
 use alloc::vec::Vec;
 pub use arch::*;
@@ -147,4 +147,30 @@ pub trait Vm: Send + Sync {
 pub enum HaltReason {
     NormalExit,
     SysFailure,
+}
+
+pub fn mmio_read<T>(addr: T) -> T
+where
+    T: Copy + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T>,
+{
+    #[allow(clippy::let_and_return)]
+    unsafe {
+        let val = core::ptr::read_volatile(&addr as *const _);
+
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+        core::arch::asm!("fence i,r");
+        val
+    }
+}
+
+pub fn mmio_write<T>(addr: *mut T, val: T)
+where
+    T: Copy + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T>,
+{
+    #[allow(clippy::let_and_return)]
+    unsafe {
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+        core::arch::asm!("fence w,o");
+        core::ptr::write_volatile(addr, val);
+    }
 }

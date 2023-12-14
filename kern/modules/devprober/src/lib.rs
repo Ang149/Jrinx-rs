@@ -1,9 +1,11 @@
 #![no_std]
 
+extern crate alloc;
+use alloc::string::{String, ToString};
 use fdt::{node::FdtNode, Fdt};
-use jrinx_error::Result;
-
 pub use jrinx_devprober_macro::*;
+use jrinx_error::Result;
+use spin::Once;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -25,6 +27,15 @@ impl DevProber {
 }
 
 pub fn probe_all_device(fdt: &Fdt) -> Result<()> {
+    static INIT_TOOL: Once<()> = Once::new();
+    static mut ROOT_COMPATIBLE: Option<String> = None;
+    INIT_TOOL.call_once(|| {
+        let root_compatible = fdt.root().compatible().first();
+        //更好的写法？
+        unsafe {
+            ROOT_COMPATIBLE = Some(root_compatible.to_string());
+        }
+    });
     for devprober in devprober_iter() {
         match devprober.ident {
             DevIdent::DeviceType(device_type) => {

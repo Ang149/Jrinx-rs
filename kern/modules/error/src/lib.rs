@@ -4,6 +4,8 @@
 pub enum InternalError {
     RepeatInitialization,
     DevProbeError,
+    DevReadError,
+    DevWriteError,
     ElfParseError,
     NotEnoughMem,
     InvalidCpuId,
@@ -16,7 +18,6 @@ pub enum InternalError {
     InvalidInspectorStatus,
     InvalidRuntimeStatus,
     InvalidTimedEventStatus,
-    InvalidInterruptRequestNum,
 }
 
 pub type Result<T> = core::result::Result<T, InternalError>;

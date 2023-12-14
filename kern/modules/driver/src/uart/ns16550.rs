@@ -1,6 +1,9 @@
+#![allow(unused)]
 use crate::io::{Io, Mmio, ReadOnly};
+use crate::Uart;
+use bitflags::bitflags;
 use core::ops::{BitAnd, BitOr, Not};
-use lock::Mutex;
+use jrinx_error::{InternalError, Result};
 bitflags! {
     /// Interrupt enable flags
     struct IntEnFlags: u8
@@ -29,45 +32,35 @@ struct NS16550Inner<T: Io> {
     line_status: ReadOnly<T>,
     modem_status: ReadOnly<T>,
 }
-impl<T: Io> Uart for NS16550Inner<T>
+impl<T: Io> NS16550Inner<T>
 where
     T::Value: From<u8> + TryInto<u8>,
 {
-    fn init(&self) -> Result<()> {
+    fn line_status(&self) -> LineStsFlags {
+        LineStsFlags::from_bits_truncate(
+            (self.line_status.read() & 0xFF.into())
+                .try_into()
+                .unwrap_or(0),
+        )
+    }
+    fn init(&mut self) -> Result<()> {
         self.interrupt_enable.write(0x00.into());
         self.fifo_control.write(0xC7.into());
         self.modem_control.write(0x0B.into());
         self.interrupt_enable.write(0x01.into());
+        Ok(())
     }
-    fn read(&self) -> Result<u8> {
-        if self.line_status.read().contains(LineStsFlags::INPUT_FULL) {
+    fn read(&mut self) -> Result<u8> {
+        if self.line_status().contains(LineStsFlags::INPUT_FULL) {
             let data = self.data.read();
-            if self.line_status.read().contains(LineStsFlags::ERRORED) {
-                Err(Error::new("NS16550 read error"))
-            } else {
-                Ok(data.try_into().unwrap())
-            }
-        }
-    }
-    fn write(&self, data: u8) -> Result<()> {
-        while !self.line_status.read().contains(LineStsFlags::OUTPUT_EMPTY) {}
-        self.data.write(data.into());
-        if self.line_status.read().contains(LineStsFlags::ERRORED) {
-            Err(Error::new("NS16550 write error"))
+            Ok(data.try_into().unwrap_or(0))
         } else {
-            Ok(())
+            Result::Err(InternalError::DevReadError)
         }
     }
-    fn write_str(&self, data: &str) -> Result<()> {
-        for c in data.bytes() {
-            match c {
-                b'\n' => {
-                    self.write(b'\r')?;
-                    self.write(b'\n')?;
-                }
-                _ => self.write(c)?,
-            }
-        }
+    fn write(&mut self, data: u8) -> Result<()> {
+        while !self.line_status().contains(LineStsFlags::OUTPUT_EMPTY) {}
+        self.data.write(data.into());
         Ok(())
     }
 }

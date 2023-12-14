@@ -1,3 +1,5 @@
+use jrinx_hal::{mmio_read, mmio_write};
+
 use super::Io;
 use core::ops::{BitAnd, BitOr, Not};
 #[repr(transparent)]
@@ -30,20 +32,10 @@ where
     type Value = T;
 
     fn read(&self) -> T {
-        #[allow(clippy::let_and_return)]
-        unsafe {
-            let val = core::ptr::read_volatile(&self.0 as *const _);
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-            core::arch::asm!("fence i,r");
-            val
-        }
+        mmio_read(self.0)
     }
 
     fn write(&mut self, value: T) {
-        unsafe {
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-            core::arch::asm!("fence w,o");
-            core::ptr::write_volatile(&mut self.0 as *mut _, value)
-        };
+        mmio_write(&mut self.0 as *mut _, value)
     }
 }
