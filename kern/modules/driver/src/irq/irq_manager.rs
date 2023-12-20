@@ -31,4 +31,7 @@ impl<const IRQ_RANGE: usize> IrqManager<IRQ_RANGE> {
             }
         }
     }
+    pub fn contains(&self, irq_num: usize) -> bool {
+        self.table[irq_num].is_some()
+    }
 }

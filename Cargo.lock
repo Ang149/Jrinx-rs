@@ -627,7 +627,9 @@ dependencies = [
  "jrinx-hal",
  "jrinx-heap",
  "jrinx-layout",
+ "jrinx-trap",
  "jrinx-util",
+ "riscv",
  "spin",
 ]
 

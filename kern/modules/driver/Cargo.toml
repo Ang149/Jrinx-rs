@@ -13,5 +13,9 @@ jrinx-hal = { version = "0.1.0", path = "../hal" }
 jrinx-heap = { version = "0.1.0", path = "../heap" }
 jrinx-layout = { version = "0.1.0", path = "../layout" }
 jrinx-util = { version = "0.1.0", path = "../util" }
+jrinx-trap = { version = "0.1.0", path = "../trap" }
 bitflags = "1.3"
 spin = "0.9.8"
+
+[target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
+riscv = "0.10.1"

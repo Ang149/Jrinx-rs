@@ -4,7 +4,7 @@ use crate::{GenericContext, TrapReason};
 
 static BREAKPOINT_COUNTER: RwLock<u64> = RwLock::new(0);
 
-pub(crate) fn handle(ctx: &mut impl GenericContext) {
+pub fn handle(ctx: &mut impl GenericContext) {
     let TrapReason::Breakpoint { addr } = ctx.trap_reason() else {
         panic!("not a breakpoint trap");
     };

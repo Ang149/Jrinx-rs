@@ -16,6 +16,10 @@ cfg_if! {
                 len: PHYS_MEM_LIMIT - PHYS_MEM_BASE,
             },
         ];
+        pub const EXTERNAL_DEVICE_REGION: VirtMemRegion = VirtMemRegion {
+            addr: 0xD000_0000,
+            len: 0xE000_0000-0xD000_0000,
+        };
         pub const EXECUTOR_STACK_REGION: VirtMemRegion = VirtMemRegion {
             addr: 0xE000_0000,
             len: 0xF000_0000 - 0xE000_0000,
@@ -39,6 +43,10 @@ cfg_if! {
         pub const EXECUTOR_STACK_REGION: VirtMemRegion = VirtMemRegion {
             addr: 0xFFFF_FFE0_0000_0000,
             len: 0xFFFF_FFFF_0000_0000 - 0xFFFF_FFE0_0000_0000,
+        };
+        pub const EXTERNAL_DEVICE_REGION: VirtMemRegion = VirtMemRegion {
+            addr: 0xFFFF_FFFF_0000_0000,
+            len: 0x0000_0000_1000_0000,
         };
     } else {
         compile_error!("unsupported target_arch");

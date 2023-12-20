@@ -32,6 +32,7 @@ pub trait InterruptController: Driver {
     fn register_handler(&self, irq_num: usize, handler: InterruptHandler) -> Result<()>;
     fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()>;
     fn unregister_handler(&self, irq_num: usize) -> Result<()>;
+    fn contains(&self, irq_num: usize) -> bool;
 }
 
 pub trait Uart: Driver {

@@ -25,17 +25,10 @@ impl DevProber {
         Self { ident, probe }
     }
 }
+pub static ROOT_COMPATIBLE: Once<String> = Once::new();
 
 pub fn probe_all_device(fdt: &Fdt) -> Result<()> {
-    static INIT_TOOL: Once<()> = Once::new();
-    static mut ROOT_COMPATIBLE: Option<String> = None;
-    INIT_TOOL.call_once(|| {
-        let root_compatible = fdt.root().compatible().first();
-        //更好的写法？
-        unsafe {
-            ROOT_COMPATIBLE = Some(root_compatible.to_string());
-        }
-    });
+    ROOT_COMPATIBLE.try_call_once::<_,()>(|| {Ok(fdt.root().compatible().first().to_string())}).unwrap();
     for devprober in devprober_iter() {
         match devprober.ident {
             DevIdent::DeviceType(device_type) => {

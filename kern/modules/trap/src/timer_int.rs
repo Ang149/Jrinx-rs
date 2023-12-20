@@ -4,7 +4,7 @@ use crate::{GenericContext, TrapReason};
 
 static TIMER_INT_COUNTER: RwLock<u64> = RwLock::new(0);
 
-pub(crate) fn handle(ctx: &mut impl GenericContext) {
+pub fn handle(ctx: &mut impl GenericContext) {
     let TrapReason::TimerInterrupt = ctx.trap_reason() else {
         panic!("not a timer interrupt");
     };

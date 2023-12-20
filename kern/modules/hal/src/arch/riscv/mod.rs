@@ -2,8 +2,8 @@ pub mod cache;
 pub mod cpu;
 pub mod earlycon;
 pub mod interrupt;
+pub mod mmio;
 pub mod vm;
-
 use crate::{Hal, HaltReason};
 
 #[derive(Debug, Clone, Copy)]

@@ -1,14 +1,15 @@
-#![allow(unused)]
+
+use super::riscv_intc::{self, Intc};
+use super::irq_manager::IrqManager;
 use crate::io::{Io, Mmio};
 use crate::{Driver, InterruptController, InterruptHandler};
 use alloc::sync::Arc;
 use core::ops::Range;
-use jrinx_error::Result;
+use fdt::node::{self, FdtNode, NodeProperty};
+use jrinx_devprober::devprober;
+use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal};
 use spin::{Mutex, Once};
-use fdt::node::{FdtNode, self,NodeProperty};
-use jrinx_devprober::devprober;
-use super::irq_manager::IrqManager;
 const IRQ_RANGE: Range<usize> = 1..1024;
 const PLIC_PRIORITY_BASE: usize = 0x0;
 const PLIC_PENDING_BASE: usize = 0x1000;
@@ -20,19 +21,20 @@ const PLIC_CONTEXT_CLAIM: usize = 0x4 / core::mem::size_of::<u32>();
 
 const PLIC_ENABLE_CONTEXT_OFFSET: usize = 0x80 / core::mem::size_of::<u32>();
 const PLIC_CONTEXT_HART_OFFSET: usize = 0x1000 / core::mem::size_of::<u32>();
-
-
-#[devprober(compatible = "sifive,plic-1.0.0\0riscv,plic0")]
-fn probe(_node: &FdtNode) -> Result<()> {
-    let reg = _node.property("reg"); 
-    //空间大小没有控制？更好的写法？
-    static INIT_TOOL:Once = Once::new();
-    static mut GLOBAL_RISC_PLIC: Option<Arc<PLIC>> = None;
-    INIT_TOOL.call_once(||{
-        unsafe{
-            GLOBAL_RISC_PLIC = Some(Arc::new(PLIC::new(reg.unwrap().value[1] as usize)));
-        }
+static GLOBAL_RISC_PLIC: Once<PLIC> = Once::new();
+#[devprober(compatible = "sifive,plic-1.0.0", compatible = "riscv,plic0")]
+fn probe(node: &FdtNode) -> Result<()> {
+    let region = node
+        .reg()
+        .ok_or(InternalError::DevProbeError)?
+        .next()
+        .ok_or(InternalError::DevProbeError)?;
+    let addr = region.starting_address;
+    let size = region.size.ok_or(InternalError::DevProbeError)?;
+    GLOBAL_RISC_PLIC.try_call_once::<_, ()>(|| unsafe {
+        Ok((PLIC::new(addr as usize)))
     });
+    
     Ok(())
 }
 
@@ -123,6 +125,10 @@ impl Driver for PLIC {
 impl InterruptController for PLIC {
     fn is_valid(&self, irq_num: usize) -> bool {
         self.inner.lock().is_valid(irq_num)
+    }
+
+    fn contains(&self, irq_num: usize) -> bool {
+        self.inner.lock().irq_manager.contains(irq_num)
     }
 
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {

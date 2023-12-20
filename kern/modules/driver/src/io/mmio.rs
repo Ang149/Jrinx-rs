@@ -1,4 +1,4 @@
-use jrinx_hal::{mmio_read, mmio_write};
+use jrinx_hal::mmio::{riscv_mmio_read, riscv_mmio_write};
 
 use super::Io;
 use core::ops::{BitAnd, BitOr, Not};
@@ -32,10 +32,17 @@ where
     type Value = T;
 
     fn read(&self) -> T {
-        mmio_read(self.0)
+        unsafe {
+            let val = core::ptr::read_volatile(&self.0 as *const _);
+            riscv_mmio_read();
+            val
+        }
     }
 
     fn write(&mut self, value: T) {
-        mmio_write(&mut self.0 as *mut _, value)
+        unsafe {
+            riscv_mmio_write();
+            core::ptr::write_volatile(&mut self.0 as *mut _, value)
+        };
     }
 }
