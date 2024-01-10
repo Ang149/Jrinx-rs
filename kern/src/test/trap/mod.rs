@@ -9,6 +9,11 @@ use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
 use jrinx_phys_frame::PhysFrame;
 use jrinx_vmm::KERN_PAGE_TABLE;
 
+// pub(super) mod uart{
+//     use jrinx_driver::uart::ns16550::GLOBAL_NS16550;
+    
+// }
+
 pub(super) mod breakpoint {
     use jrinx_hal::Hal;
     use jrinx_testdef::testdef;

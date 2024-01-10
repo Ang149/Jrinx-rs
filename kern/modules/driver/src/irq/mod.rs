@@ -1,3 +1,3 @@
 mod riscv_plic;
 mod irq_manager;
-mod riscv_intc;
+pub mod riscv_intc;

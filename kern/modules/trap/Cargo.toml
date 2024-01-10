@@ -9,6 +9,7 @@ jrinx-addr = { version = "0.1.0", path = "../addr" }
 jrinx-hal = { version = "0.1.0", path = "../hal" }
 jrinx-paging = { version = "0.1.0", path = "../paging" }
 jrinx-timed-event = { version = "0.1.0", path = "../timed-event" }
+jrinx-driver ={ version = "0.1.0", path = "../driver" }
 log = { version = "0.4.20", default-features = false }
 spin = "0.9.8"
 

@@ -4,12 +4,20 @@ use super::irq_manager::IrqManager;
 use crate::io::{Io, Mmio};
 use crate::{Driver, InterruptController, InterruptHandler};
 use alloc::sync::Arc;
+use log::info;
 use core::ops::Range;
 use fdt::node::{self, FdtNode, NodeProperty};
 use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal};
 use spin::{Mutex, Once};
+use jrinx_vmm::KERN_PAGE_TABLE;
+use jrinx_phys_frame::PhysFrame;
+use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
+use jrinx_addr::VirtAddr;
+extern crate jrinx_config;
+use jrinx_config::EXTERNAL_DEVICE_REGION;
+
 const IRQ_RANGE: Range<usize> = 1..1024;
 const PLIC_PRIORITY_BASE: usize = 0x0;
 const PLIC_PENDING_BASE: usize = 0x1000;
@@ -21,7 +29,7 @@ const PLIC_CONTEXT_CLAIM: usize = 0x4 / core::mem::size_of::<u32>();
 
 const PLIC_ENABLE_CONTEXT_OFFSET: usize = 0x80 / core::mem::size_of::<u32>();
 const PLIC_CONTEXT_HART_OFFSET: usize = 0x1000 / core::mem::size_of::<u32>();
-static GLOBAL_RISC_PLIC: Once<PLIC> = Once::new();
+pub static GLOBAL_RISC_PLIC: Once<PLIC> = Once::new();
 #[devprober(compatible = "sifive,plic-1.0.0", compatible = "riscv,plic0")]
 fn probe(node: &FdtNode) -> Result<()> {
     let region = node
@@ -29,12 +37,15 @@ fn probe(node: &FdtNode) -> Result<()> {
         .ok_or(InternalError::DevProbeError)?
         .next()
         .ok_or(InternalError::DevProbeError)?;
-    let addr = region.starting_address;
+    let addr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
     let size = region.size.ok_or(InternalError::DevProbeError)?;
     GLOBAL_RISC_PLIC.try_call_once::<_, ()>(|| unsafe {
         Ok((PLIC::new(addr as usize)))
     });
     
+    let mut page_table = KERN_PAGE_TABLE.write();
+    let phys_frame = PhysFrame::alloc()?;
+    page_table.map(VirtAddr::new(addr as usize), phys_frame, PagePerm::G | PagePerm::R | PagePerm::W)?;
     Ok(())
 }
 
@@ -110,26 +121,23 @@ impl PLIC {
             inner: Mutex::new(inner),
         }
     }
+    fn is_valid(&self, irq_num: usize) -> bool {
+        self.inner.lock().is_valid(irq_num)
+    }
 }
 impl Driver for PLIC {
     fn name(&self) -> &str {
         "riscv_plic"
     }
 
-    fn handle_irq(&self, irq_num: usize) {
+    fn handle_irq(&self,irq_num:usize) {
         let mut inner = self.inner.lock();
-        inner.irq_manager.handle_irq(irq_num);
-        inner.eoi(irq_num);
+        let _irq_num = inner.get_current_cpu_claim().unwrap();
+        inner.irq_manager.handle_irq(_irq_num);
+        inner.eoi(_irq_num);
     }
 }
 impl InterruptController for PLIC {
-    fn is_valid(&self, irq_num: usize) -> bool {
-        self.inner.lock().is_valid(irq_num)
-    }
-
-    fn contains(&self, irq_num: usize) -> bool {
-        self.inner.lock().irq_manager.contains(irq_num)
-    }
 
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
         let mut inner = self.inner.lock();
@@ -144,12 +152,9 @@ impl InterruptController for PLIC {
     }
 
     fn register_handler(&self, irq_num: usize, handler: InterruptHandler) -> Result<()> {
-        // let mut inner = self.inner.lock();
-        // inner.irq_manager.register_handler(irq_num, handler);
-        // Ok(())
         todo!()
     }
-    fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()> {
+    fn register_device(&self, irq_num: usize, dev: Arc<&'static dyn Driver>) -> Result<()> {
         let mut inner = self.inner.lock();
         inner.irq_manager.register_device(irq_num, dev);
         Ok(())

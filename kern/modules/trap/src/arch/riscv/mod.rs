@@ -9,7 +9,8 @@ use riscv::register::{
 };
 
 use crate::{breakpoint, soft_int, timer_int, GenericContext, TrapReason};
-
+extern crate jrinx_driver;
+use jrinx_driver::irq::riscv_intc::GLOBAL_INTC;
 #[derive(Debug, Default, Clone, Copy)]
 #[repr(C)]
 pub struct Register {
@@ -183,6 +184,8 @@ extern "C" fn handle_kern_trap(ctx: &mut Context) {
         TrapReason::Breakpoint { addr: _ } => breakpoint::handle(ctx),
         TrapReason::SoftwareInterrupt => soft_int::handle(ctx),
         TrapReason::TimerInterrupt => timer_int::handle(ctx),
-        _ => unimplemented!(),
+        _ => {
+            GLOBAL_INTC.get().unwrap().handle_irq(0);
+        }
     }
 }
