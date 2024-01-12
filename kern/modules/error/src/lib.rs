@@ -17,6 +17,8 @@ pub enum InternalError {
     DuplicateInspectorId,
     InvalidInspectorStatus,
     InvalidRuntimeStatus,
+    InvalidRuntimeSchedTable,
+    DuplicateRuntimeSchedTable,
     InvalidTimedEventStatus,
 }
 

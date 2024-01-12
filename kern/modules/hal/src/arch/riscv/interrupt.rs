@@ -1,4 +1,4 @@
-use riscv::register::sstatus;
+use riscv::register::{sip, sstatus};
 use sbi::HartMask;
 
 use crate::Interrupt;
@@ -29,10 +29,13 @@ impl Interrupt for InterruptImpl {
         }
     }
 
+    fn is_timer_pending(&self) -> bool {
+        sip::read().stimer()
+    }
+
     fn clr_soft(&self) {
-        let bits = 2;
         unsafe {
-            core::arch::asm!("csrc sip, {}", in(reg) bits);
+            core::arch::asm!("csrci sip, 2");
         }
     }
 

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bitflags = "1.3"
 fdt = "0.1.5"
 jrinx-addr = { version = "0.1.0", path = "../addr" }
 jrinx-config = { version = "0.1.0", path = "../config" }
@@ -12,13 +13,12 @@ jrinx-error = { version = "0.1.0", path = "../error" }
 jrinx-hal = { version = "0.1.0", path = "../hal" }
 jrinx-heap = { version = "0.1.0", path = "../heap" }
 jrinx-layout = { version = "0.1.0", path = "../layout" }
+jrinx-paging = { version = "0.1.0", path = "../paging" }
+jrinx-phys-frame = { version = "0.1.0", path = "../phys-frame" }
 jrinx-util = { version = "0.1.0", path = "../util" }
 jrinx-vmm = { version = "0.1.0", path = "../vmm" }
-jrinx-phys-frame = { version = "0.1.0", path = "../phys-frame" }
-jrinx-paging = { version = "0.1.0", path = "../paging" }
-bitflags = "1.3"
-spin = "0.9.8"
 log = { version = "0.4.20", default-features = false }
+spin = "0.9.8"
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10.1"

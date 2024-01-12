@@ -2,10 +2,13 @@
 #![feature(used_with_arg)]
 #![allow(unused)]
 extern crate alloc;
+
+#[macro_use]
 extern crate log;
+
+mod mem;
 pub mod io;
 pub mod irq;
-mod mem;
 pub mod uart;
 
 use alloc::{boxed::Box, sync::Arc};
@@ -13,6 +16,7 @@ use fdt::Fdt;
 use jrinx_error::Result;
 
 pub fn probe_all(fdt: &Fdt<'_>) {
+    info!("probing all devices");
     jrinx_devprober::probe_all_device(fdt).unwrap();
 }
 

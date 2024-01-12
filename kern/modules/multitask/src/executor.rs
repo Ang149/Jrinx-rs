@@ -144,9 +144,11 @@ impl Executor {
         F: FnOnce(&mut Pin<Box<Executor>>) -> R,
     {
         Inspector::with_current(|is| {
-            let f = |ex: &mut _| f(ex);
-            let InspectorStatus::Running(executor_id) = is.status() else {
-                return Err(InternalError::InvalidInspectorStatus);
+            let executor_id = match is.status() {
+                InspectorStatus::Running(executor_id) | InspectorStatus::Pending(executor_id) => {
+                    executor_id
+                }
+                _ => return Err(InternalError::InvalidInspectorStatus),
             };
             is.with_executor(executor_id, f)
         })?
