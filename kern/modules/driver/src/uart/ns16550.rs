@@ -7,15 +7,16 @@ use alloc::sync::Arc;
 use bitflags::bitflags;
 use core::ops::{BitAnd, BitOr, Not};
 use fdt::node::FdtNode;
+use jrinx_addr::{PhysAddr, VirtAddr};
+use jrinx_config::EXTERNAL_DEVICE_REGION;
 use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
-use log::{log, Level};
-extern crate jrinx_config;
-use jrinx_addr::VirtAddr;
-use jrinx_config::EXTERNAL_DEVICE_REGION;
+use jrinx_hal::{hal, Hal, Vm};
+use jrinx_paging::boot::BootPageTable;
 use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
 use jrinx_phys_frame::PhysFrame;
 use jrinx_vmm::KERN_PAGE_TABLE;
+use log::{log, Level};
 use spin::{Mutex, Once};
 
 pub static GLOBAL_NS16550: Once<NS16550> = Once::new();
@@ -29,15 +30,17 @@ fn probe(node: &FdtNode) -> Result<()> {
         .ok_or(InternalError::DevProbeError)?;
     let addr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
     let size = region.size.ok_or(InternalError::DevProbeError)?;
-    let mut page_table = KERN_PAGE_TABLE.write();
-    let phys_frame = PhysFrame::alloc()?;
-    page_table.map(
-        VirtAddr::new(addr as usize),
-        phys_frame,
-        PagePerm::G | PagePerm::R | PagePerm::W,
-    )?;
-    log!(Level::Info, "a log event");
-    //GLOBAL_NS16550.try_call_once::<_, ()>(|| unsafe { Ok(NS16550::new(addr as usize)) });
+    unsafe {
+        BootPageTable.map(
+            VirtAddr::new(addr),
+            PhysAddr::new(region.starting_address as usize),
+        );
+    }
+    hal!().vm().sync_all();
+    GLOBAL_NS16550.try_call_once::<_, ()>(|| Ok(NS16550::new(addr as usize)));
+
+    // info!("123");
+
     // GLOBAL_INTC
     //     .get()
     //     .unwrap()
@@ -86,10 +89,10 @@ impl NS16550Inner {
         )
     }
     fn init(&mut self) -> Result<()> {
-        self.interrupt_enable.write(0x00 as u8);
-        self.fifo_control.write(0xC7 as u8);
-        self.modem_control.write(0x0B as u8);
-        self.interrupt_enable.write(0x01 as u8);
+        self.fifo_control.write(0);
+        self.line_control.write(0b11);
+        self.modem_control.write(0);
+        self.interrupt_enable.write(IntEnFlags::RECEIVED.bits());
         Ok(())
     }
     fn read(&mut self) -> Option<u8> {
@@ -109,12 +112,11 @@ impl NS16550Inner {
 }
 impl NS16550 {
     fn new(base: usize) -> Self {
-        unsafe {
-            let uart: &mut NS16550Inner = Mmio::<u8>::from_base_as(base);
-            uart.init();
-            Self {
-                inner: Mutex::new(uart),
-            }
+        // info!("base: {:x}", base);
+        let uart: &mut NS16550Inner = unsafe { Mmio::<u8>::from_base_as(base) };
+        uart.init();
+        Self {
+            inner: Mutex::new(uart),
         }
     }
     pub fn write(&self, data: u8) -> Result<()> {

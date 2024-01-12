@@ -35,6 +35,7 @@ where
         unsafe {
             let val = core::ptr::read_volatile(&self.0 as *const _);
             riscv_mmio_read();
+            // hal!().io().read_fence();
             val
         }
     }
