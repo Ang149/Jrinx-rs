@@ -8,7 +8,7 @@
 #![no_main]
 
 use arch::BootInfo;
-use jrinx_hal::{Cpu, Hal, Interrupt};
+use jrinx_hal::{Cpu, Hal};
 use jrinx_multitask::runtime::{self, Runtime};
 use spin::Mutex;
 
@@ -72,10 +72,10 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_vmm::init();
 
     runtime::init(primary_task());
-    hal!().interrupt().with_saved_on
-    (|| {
-       loop{}
-    });
+    // hal!().interrupt().with_saved_on
+    // (|| {
+    //    loop{}
+    // });
     boot_set_ready();
 
     Runtime::start();

@@ -11,5 +11,5 @@ impl IrqDispatch {
     
 }
 pub fn single_cpu_strategy() {
-    IRQ_TABLE.write().get(&PLIC_PHANDLE.get().unwrap()).unwrap().lock().enable(hal!().cpu().id(),10);
+    IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().enable(hal!().cpu().id(),10);
 }

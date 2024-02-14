@@ -26,7 +26,7 @@ impl Driver for Intc {
         &self.name
     }
     fn handle_irq(&self, irq_num: usize) {
-        IRQ_TABLE.write().get(&PLIC_PHANDLE.get().unwrap()).unwrap().lock().handle_irq(irq_num);
+        IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().handle_irq(irq_num);
     }
 }
 impl InterruptController for Intc {
