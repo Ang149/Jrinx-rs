@@ -8,4 +8,6 @@ fdt = { version = "0.1.5", default-features = false }
 jrinx-devprober-macro = { version = "0.1.0", path = "../devprober-macro" }
 jrinx-error = { version = "0.1.0", path = "../error" }
 jrinx-layout = { version = "0.1.0", path = "../layout" }
+log = { version = "0.4.20", default-features = false }
+
 spin = "0.9.8"

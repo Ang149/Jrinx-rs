@@ -180,6 +180,7 @@ pub(crate) fn init() {
 
 extern "C" fn handle_kern_trap(ctx: &mut Context) {
     let reason = ctx.trap_reason();
+    info!("reason is {:x?}", reason);
     match reason {
         TrapReason::Breakpoint { addr: _ } => breakpoint::handle(ctx),
         TrapReason::SoftwareInterrupt => soft_int::handle(ctx),

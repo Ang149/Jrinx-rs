@@ -3,12 +3,12 @@
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(used_with_arg)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![no_std]
 #![no_main]
 
 use arch::BootInfo;
-use jrinx_hal::{Cpu, Hal};
+use jrinx_hal::{Cpu, Hal, Interrupt};
 use jrinx_multitask::runtime::{self, Runtime};
 use spin::Mutex;
 
@@ -54,7 +54,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
-
+    jrinx_driver::irq::irq_dispatch::single_cpu_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -72,7 +72,10 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_vmm::init();
 
     runtime::init(primary_task());
-
+    hal!().interrupt().with_saved_on
+    (|| {
+       loop{}
+    });
     boot_set_ready();
 
     Runtime::start();

@@ -1,6 +1,6 @@
-use jrinx_hal::mmio::{riscv_mmio_read, riscv_mmio_write};
+use jrinx_hal::{hal, Hal, Io};
 
-use super::Io;
+use super::Io as DriverIo;
 use core::ops::{BitAnd, BitOr, Not};
 #[repr(transparent)]
 pub struct Mmio<T>(T);
@@ -12,7 +12,6 @@ impl<T> Mmio<T> {
         assert_eq!(base_addr % core::mem::size_of::<T>(), 0);
         &mut *(base_addr as *mut R)
     }
-
     /// # Safety
     ///
     /// This function is unsafe because `base_addr` may be an arbitrary address.
@@ -25,7 +24,7 @@ impl<T> Mmio<T> {
     }
 }
 
-impl<T> Io for Mmio<T>
+impl<T> DriverIo for Mmio<T>
 where
     T: Copy + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T>,
 {
@@ -34,15 +33,14 @@ where
     fn read(&self) -> T {
         unsafe {
             let val = core::ptr::read_volatile(&self.0 as *const _);
-            riscv_mmio_read();
-            // hal!().io().read_fence();
+            hal!().io().read_fence();
             val
         }
     }
 
     fn write(&mut self, value: T) {
         unsafe {
-            riscv_mmio_write();
+            hal!().io().write_fence();
             core::ptr::write_volatile(&mut self.0 as *mut _, value)
         };
     }

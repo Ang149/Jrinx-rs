@@ -25,8 +25,7 @@ pub fn handle(ctx: &mut impl GenericContext) {
         hal!().cpu().set_timer(Duration::MAX);
     }
 }
-pub fn timer_interrupt_handler()
-{
+pub fn timer_interrupt_handler() {
     let mut counter = TIMER_INT_COUNTER.write();
     *counter += 1;
 

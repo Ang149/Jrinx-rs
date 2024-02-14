@@ -2,7 +2,7 @@ pub mod cache;
 pub mod cpu;
 pub mod earlycon;
 pub mod interrupt;
-pub mod mmio;
+pub mod io;
 pub mod vm;
 use crate::{Hal, HaltReason};
 
@@ -45,5 +45,9 @@ impl Hal for HalImpl {
 
     fn vm(&self) -> impl crate::Vm {
         vm::VmImpl
+    }
+
+    fn io(&self) -> impl crate::Io {
+        io::IoImpl
     }
 }

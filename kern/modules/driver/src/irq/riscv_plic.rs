@@ -1,22 +1,25 @@
-
-use super::riscv_intc::{self, Intc};
 use super::irq_manager::IrqManager;
+use super::riscv_intc::{self, Intc};
 use crate::io::{Io, Mmio};
+use crate::irq::riscv_intc::{GLOBAL_INTC, IRQ_TABLE};
 use crate::{Driver, InterruptController, InterruptHandler};
 use alloc::sync::Arc;
-use log::info;
 use core::ops::Range;
 use fdt::node::{self, FdtNode, NodeProperty};
-use jrinx_devprober::devprober;
+use jrinx_addr::{PhysAddr, VirtAddr};
+use jrinx_devprober::{devprober, ROOT_COMPATIBLE};
 use jrinx_error::{InternalError, Result};
-use jrinx_hal::{hal, Cpu, Hal};
-use spin::{Mutex, Once};
-use jrinx_vmm::KERN_PAGE_TABLE;
-use jrinx_phys_frame::PhysFrame;
+use jrinx_hal::{hal, Cpu, Hal, Vm};
+use jrinx_paging::boot::BootPageTable;
 use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
-use jrinx_addr::VirtAddr;
+use jrinx_phys_frame::PhysFrame;
+use jrinx_vmm::KERN_PAGE_TABLE;
+use log::info;
+use spin::{Mutex, Once};
 extern crate jrinx_config;
-use jrinx_config::EXTERNAL_DEVICE_REGION;
+use jrinx_config::{EXTERNAL_DEVICE_REGION, PAGE_SIZE};
+
+pub static PLIC_PHANDLE:Once<usize> = Once::new();
 
 const IRQ_RANGE: Range<usize> = 1..1024;
 const PLIC_PRIORITY_BASE: usize = 0x0;
@@ -29,7 +32,6 @@ const PLIC_CONTEXT_CLAIM: usize = 0x4 / core::mem::size_of::<u32>();
 
 const PLIC_ENABLE_CONTEXT_OFFSET: usize = 0x80 / core::mem::size_of::<u32>();
 const PLIC_CONTEXT_HART_OFFSET: usize = 0x1000 / core::mem::size_of::<u32>();
-pub static GLOBAL_RISC_PLIC: Once<PLIC> = Once::new();
 #[devprober(compatible = "sifive,plic-1.0.0", compatible = "riscv,plic0")]
 fn probe(node: &FdtNode) -> Result<()> {
     let region = node
@@ -39,13 +41,26 @@ fn probe(node: &FdtNode) -> Result<()> {
         .ok_or(InternalError::DevProbeError)?;
     let addr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
     let size = region.size.ok_or(InternalError::DevProbeError)?;
-    GLOBAL_RISC_PLIC.try_call_once::<_, ()>(|| unsafe {
-        Ok((PLIC::new(addr as usize)))
-    });
-    
-    let mut page_table = KERN_PAGE_TABLE.write();
-    let phys_frame = PhysFrame::alloc()?;
-    page_table.map(VirtAddr::new(addr as usize), phys_frame, PagePerm::G | PagePerm::R | PagePerm::W)?;
+    let phandle = node
+        .property("phandle")
+        .ok_or(InternalError::DevProbeError)?
+        .as_usize()
+        .unwrap();
+    let context_max_id = (size - 0x200000_usize) / 0x1000_usize - 1_usize;
+    let count = size / PAGE_SIZE;
+    unsafe {
+        for i in 0..count {
+            BootPageTable.map(
+                VirtAddr::new(addr + i * PAGE_SIZE),
+                PhysAddr::new(region.starting_address as usize + i * PAGE_SIZE),
+            );
+        }
+    }
+    IRQ_TABLE
+        .write()
+        .insert(phandle, Arc::new(Mutex::new(Plic::new(addr, context_max_id))) as _);
+    PLIC_PHANDLE.call_once(|| phandle);
+    hal!().vm().sync_all();
     Ok(())
 }
 
@@ -53,17 +68,49 @@ struct PLICInner {
     priority_base: &'static mut Mmio<u32>,
     enable_base: &'static mut Mmio<u32>,
     context_base: &'static mut Mmio<u32>,
-    irq_manager: IrqManager<1024>, //更好的写法？
+    irq_manager: IrqManager,
 }
+//单核测试用
+fn get_current_context_id() -> usize {
+    let hart_id = hal!().cpu().id();
+    match ROOT_COMPATIBLE.get().unwrap().as_str() {
+        "riscv-virtio" => hart_id * 2 + 1,
+        "sifive" => {
+            if hart_id == 0 {
+                panic!("hart id 0 is invalid");
+            }
+            hart_id * 2
+        }
+        _ => panic!("unknown root compatible"),
+    }
+}
+fn get_context_id(cpu_id: usize) -> usize {
+    match ROOT_COMPATIBLE.get().unwrap().as_str() {
+        "riscv-virtio" => cpu_id * 2 + 1,
+        "sifive" => {
+            if cpu_id == 0 {
+                panic!("cpu id 0 is invalid");
+            }
+            cpu_id * 2
+        }
+        _ => panic!("unknown root compatible"),
+    }
+}    
 impl PLICInner {
+    fn init(&mut self, context_max_id: usize) {
+        for i in 0..=context_max_id {
+            self.disable_all(i);
+            self.set_threshold(i, 0);
+        }
+    }
     fn is_valid(&self, irq_num: usize) -> bool {
         IRQ_RANGE.contains(&irq_num)
     }
     fn get_current_cpu_claim(&mut self) -> Option<usize> {
-        let hart_id = hal!().cpu().id();
+        let context_id = get_current_context_id();
         let irq_num = self
             .context_base
-            .add(hart_id * PLIC_CONTEXT_HART_OFFSET)
+            .add(context_id * PLIC_CONTEXT_HART_OFFSET)
             .add(PLIC_CONTEXT_CLAIM)
             .read() as usize;
         if irq_num == 0 {
@@ -72,52 +119,64 @@ impl PLICInner {
             Some(irq_num)
         }
     }
-    fn eoi(&mut self, irq_num: usize) {
+    fn end_of_interrupt(&mut self, irq_num: usize) {
         debug_assert!(self.is_valid(irq_num));
-        let hart_id = hal!().cpu().id();
+        let context_id = get_current_context_id();
         self.context_base
-            .add(hart_id * PLIC_CONTEXT_HART_OFFSET)
+            .add(context_id * PLIC_CONTEXT_HART_OFFSET)
             .add(PLIC_CONTEXT_CLAIM)
             .write(irq_num as _);
     }
-    fn enable(&mut self, cpu_id: usize, irq_num: usize) {
+    fn enable(&mut self, context_id: usize, irq_num: usize) {
         debug_assert!(self.is_valid(irq_num));
         self.enable_base
-            .add(cpu_id * PLIC_ENABLE_CONTEXT_OFFSET)
+            .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
-            .write(1 << irq_num % 32);
+            .write(1 << (irq_num % 32) as u32);
     }
-    fn disable(&mut self, cpu_id: usize, irq_num: usize) {
+    fn disable(&mut self, context_id: usize, irq_num: usize) {
         debug_assert!(self.is_valid(irq_num));
+        let content = self
+            .enable_base
+            .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
+            .add(irq_num / 32)
+            .read();
         self.enable_base
-            .add(cpu_id * PLIC_ENABLE_CONTEXT_OFFSET)
+            .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
-            .write(0 << irq_num % 32);
+            .write(0 << (irq_num % 32) & content);
     }
-    fn set_priority(&mut self, irq_num: usize, priority: u32) {
+    fn disable_all(&mut self, context_id: usize) {
+        for i in 0..128 {
+            self.enable_base
+                .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET + i * 4)
+                .write(0);
+        }
+    }
+    fn set_priority(&mut self, irq_num: usize, priority: u8) {
         debug_assert!(self.is_valid(irq_num));
-        self.priority_base.add(irq_num).write(priority);
+        self.priority_base.add(irq_num).write(priority as _);
     }
-    fn set_threshold(&mut self, cpu_id: usize, threshold: u32) {
+    fn set_threshold(&mut self, context_id: usize, threshold: u8) {
         self.context_base
-            .add(cpu_id * PLIC_CONTEXT_HART_OFFSET)
+            .add(context_id * PLIC_CONTEXT_HART_OFFSET)
             .add(PLIC_CONTEXT_THRESHOLD)
-            .write(threshold);
+            .write(threshold as _);
     }
 }
-
-pub struct PLIC {
+pub struct Plic {
     inner: Mutex<PLICInner>,
 }
-impl PLIC {
-    pub fn new(base_addr: usize) -> Self {
+impl Plic {
+    pub fn new(base_addr: usize, context_max_id: usize) -> Self {
         let mut inner = PLICInner {
             priority_base: unsafe { Mmio::from_base(base_addr + PLIC_PRIORITY_BASE) },
             enable_base: unsafe { Mmio::from_base(base_addr + PLIC_ENABLE_BASE) },
             context_base: unsafe { Mmio::from_base(base_addr + PLIC_CONTEXT_BASE) },
             irq_manager: IrqManager::new(IRQ_RANGE),
         };
-        PLIC {
+        inner.init(context_max_id);
+        Plic {
             inner: Mutex::new(inner),
         }
     }
@@ -125,43 +184,38 @@ impl PLIC {
         self.inner.lock().is_valid(irq_num)
     }
 }
-impl Driver for PLIC {
+impl Driver for Plic {
     fn name(&self) -> &str {
         "riscv_plic"
     }
 
-    fn handle_irq(&self,irq_num:usize) {
+    fn handle_irq(&self, _: usize) {
         let mut inner = self.inner.lock();
-        let _irq_num = inner.get_current_cpu_claim().unwrap();
-        inner.irq_manager.handle_irq(_irq_num);
-        inner.eoi(_irq_num);
+        let irq_num = inner.get_current_cpu_claim().unwrap();
+        inner.irq_manager.handle_irq(irq_num);
+        inner.end_of_interrupt(irq_num);
     }
 }
-impl InterruptController for PLIC {
-
+impl InterruptController for Plic {
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
         let mut inner = self.inner.lock();
-        inner.enable(cpu_id, irq_num);
+        let context_id = get_context_id(cpu_id);
+        inner.enable(context_id, irq_num);
         Ok(())
     }
 
     fn disable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
         let mut inner = self.inner.lock();
-        inner.disable(cpu_id, irq_num);
+        let context_id = get_context_id(cpu_id);
+        inner.disable(context_id, irq_num);
         Ok(())
     }
 
-    fn register_handler(&self, irq_num: usize, handler: InterruptHandler) -> Result<()> {
-        todo!()
-    }
-    fn register_device(&self, irq_num: usize, dev: Arc<&'static dyn Driver>) -> Result<()> {
+    fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()> {
         let mut inner = self.inner.lock();
         inner.irq_manager.register_device(irq_num, dev);
-        Ok(())
-    }
-    fn unregister_handler(&self, irq_num: usize) -> Result<()> {
-        let mut inner = self.inner.lock();
-        inner.irq_manager.unregister_handler(irq_num);
+        // inner.enable(get_current_context_id(), irq_num);
+        inner.set_priority(irq_num, 7);
         Ok(())
     }
 }

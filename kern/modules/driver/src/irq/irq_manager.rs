@@ -2,19 +2,19 @@ use crate::Driver;
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::Range;
 use spin::Once;
-pub struct IrqManager<const IRQ_RANGE: usize> {
+pub struct IrqManager {
     irq_range: Range<usize>,
-    table: BTreeMap<usize, Option<Arc<&'static dyn Driver>>>,
+    table: BTreeMap<usize, Option<Arc<dyn Driver>>>,
 }
-impl<const IRQ_RANGE: usize> IrqManager<IRQ_RANGE> {
+impl IrqManager {
     pub fn new(irq_range: Range<usize>) -> Self {
-        const EMPTY_DRIVER: Option<Arc<&dyn Driver>> = None;
+        const EMPTY_DRIVER: Option<Arc<dyn Driver>> = None;
         Self {
             irq_range,
-            table: BTreeMap::<usize, Option<Arc<&'static dyn Driver>>>::new(),
+            table: BTreeMap::<usize, Option<Arc<dyn Driver>>>::new(),
         }
     }
-    pub fn register_device(&mut self, irq_num: usize, dev: Arc<&'static dyn Driver>) {
+    pub fn register_device(&mut self, irq_num: usize, dev: Arc<dyn Driver>) {
         if self.irq_range.contains(&irq_num) && irq_num != 0 {
             self.table.insert(irq_num, Some(dev));
         }

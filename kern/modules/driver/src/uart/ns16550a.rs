@@ -1,6 +1,6 @@
 use crate::io::{Io, Mmio, ReadOnly};
-use crate::irq::riscv_intc::GLOBAL_INTC;
-use crate::{Driver, Uart};
+use crate::irq::riscv_intc::{GLOBAL_INTC, IRQ_TABLE};
+use crate::{irq, Driver, Uart};
 use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::Arc;
@@ -19,8 +19,6 @@ use jrinx_vmm::KERN_PAGE_TABLE;
 use log::{log, Level};
 use spin::{Mutex, Once};
 
-pub static GLOBAL_NS16550: Once<NS16550> = Once::new();
-
 #[devprober(compatible = "ns16550a")]
 fn probe(node: &FdtNode) -> Result<()> {
     let region = node
@@ -30,6 +28,19 @@ fn probe(node: &FdtNode) -> Result<()> {
         .ok_or(InternalError::DevProbeError)?;
     let addr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
     let size = region.size.ok_or(InternalError::DevProbeError)?;
+    let irq_num = node
+        .interrupts()
+        .ok_or(InternalError::DevProbeError)?
+        .next()
+        .ok_or(InternalError::DevProbeError)?;
+    let interrupt_parent = node
+        .interrupt_parent()
+        .ok_or(InternalError::DevProbeError)?
+        .property("phandle")
+        .ok_or(InternalError::DevProbeError)?
+        .as_usize()
+        .unwrap();
+
     unsafe {
         BootPageTable.map(
             VirtAddr::new(addr),
@@ -37,15 +48,12 @@ fn probe(node: &FdtNode) -> Result<()> {
         );
     }
     hal!().vm().sync_all();
-    GLOBAL_NS16550.try_call_once::<_, ()>(|| Ok(NS16550::new(addr as usize)));
-
-    // info!("123");
-
-    // GLOBAL_INTC
-    //     .get()
-    //     .unwrap()
-    //     .register_device(6, Arc::new(GLOBAL_NS16550.get().unwrap()));
-    //GLOBAL_NS16550.get().unwrap().write_str("test uart write");
+    IRQ_TABLE
+        .write()
+        .get(&interrupt_parent)
+        .unwrap()
+        .lock()
+        .register_device(irq_num, Arc::new(NS16550a::new(addr)));
     Ok(())
 }
 bitflags! {
@@ -67,8 +75,9 @@ bitflags! {
         const OUTPUT_EMPTY = 1 << 5;
     }
 }
-pub struct NS16550 {
+pub struct NS16550a {
     inner: Mutex<&'static mut NS16550Inner>,
+    buffer: Mutex<VecDeque<u8>>,
 }
 #[repr(C)]
 struct NS16550Inner {
@@ -82,11 +91,7 @@ struct NS16550Inner {
 }
 impl NS16550Inner {
     fn line_status(&self) -> LineStsFlags {
-        LineStsFlags::from_bits_truncate(
-            (self.line_status.read() & 0xFF as u8)
-                .try_into()
-                .unwrap_or(0),
-        )
+        LineStsFlags::from_bits_truncate(self.line_status.read())
     }
     fn init(&mut self) -> Result<()> {
         self.fifo_control.write(0);
@@ -98,25 +103,24 @@ impl NS16550Inner {
     fn read(&mut self) -> Option<u8> {
         if self.line_status().contains(LineStsFlags::INPUT_FULL) {
             let data = self.data.read();
-            Some(data.try_into().unwrap_or(0))
+            Some(data)
         } else {
             None
         }
     }
     fn write(&mut self, data: u8) -> Result<()> {
         while !self.line_status().contains(LineStsFlags::OUTPUT_EMPTY) {}
-
         self.data.write(data);
         Ok(())
     }
 }
-impl NS16550 {
+impl NS16550a {
     fn new(base: usize) -> Self {
-        // info!("base: {:x}", base);
         let uart: &mut NS16550Inner = unsafe { Mmio::<u8>::from_base_as(base) };
         uart.init();
         Self {
             inner: Mutex::new(uart),
+            buffer: Mutex::new(VecDeque::new()),
         }
     }
     pub fn write(&self, data: u8) -> Result<()> {
@@ -140,13 +144,14 @@ impl NS16550 {
         self.inner.lock().read()
     }
 }
-impl Driver for NS16550 {
+impl Driver for NS16550a {
     fn name(&self) -> &str {
-        "ns16550"
+        "ns16550a"
     }
     fn handle_irq(&self, irq_num: usize) {
         while let Some(ch) = self.inner.lock().read() {
-            //info!("ns16550 handle irq and read {}", ch);
+            info!("ns16550a handle irq and read {}", ch as char);
+            self.buffer.lock().push_back(ch);
         }
     }
 }

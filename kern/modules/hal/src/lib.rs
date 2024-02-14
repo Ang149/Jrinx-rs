@@ -36,6 +36,8 @@ pub trait Hal: Send + Sync {
     fn interrupt(&self) -> impl Interrupt;
 
     fn vm(&self) -> impl Vm;
+
+    fn io(&self) -> impl Io;
 }
 
 pub trait Cpu: Send + Sync {
@@ -138,6 +140,12 @@ pub trait Vm: Send + Sync {
     fn disable(&self);
 
     fn sync_all(&self);
+}
+
+pub trait Io: Send + Sync {
+    fn read_fence(&self);
+
+    fn write_fence(&self,);
 }
 
 pub enum HaltReason {

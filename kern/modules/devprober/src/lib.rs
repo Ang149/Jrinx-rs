@@ -1,10 +1,14 @@
 #![no_std]
 
 extern crate alloc;
-use alloc::string::{String, ToString};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use fdt::{node::FdtNode, Fdt};
 pub use jrinx_devprober_macro::*;
 use jrinx_error::Result;
+use log::info;
 use spin::Once;
 
 #[repr(C)]
@@ -28,8 +32,16 @@ impl DevProber {
 pub static ROOT_COMPATIBLE: Once<String> = Once::new();
 
 pub fn probe_all_device(fdt: &Fdt) -> Result<()> {
-    ROOT_COMPATIBLE.try_call_once::<_,()>(|| {Ok(fdt.root().compatible().first().to_string())}).unwrap();
-    for devprober in devprober_iter() {
+    ROOT_COMPATIBLE
+        .try_call_once::<_, ()>(|| Ok(fdt.root().compatible().first().to_string()))
+        .unwrap();
+    info!("Root compatible: {}", ROOT_COMPATIBLE.get().unwrap());
+    let mut devprober_list: Vec<_> = devprober_iter().collect();
+    devprober_list.sort_unstable_by(|a, b| b.ident.cmp(&a.ident));
+    for devprober in &devprober_list{
+        info!("{:?}", devprober.ident);
+    }
+    for devprober in devprober_list {
         match devprober.ident {
             DevIdent::DeviceType(device_type) => {
                 for node in fdt.all_nodes().filter(|node| {

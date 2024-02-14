@@ -14,8 +14,7 @@ pub fn handle(ctx: &mut impl GenericContext) {
 
     hal!().interrupt().clr_soft();
 }
-pub fn software_interrupt_handler()
-{
+pub fn software_interrupt_handler() {
     let mut counter = SOFT_INT_COUNTER.write();
     *counter += 1;
     hal!().interrupt().clr_soft();
