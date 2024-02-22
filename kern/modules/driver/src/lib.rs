@@ -33,6 +33,7 @@ pub trait InterruptController: Driver {
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()>;
     fn disable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()>;
     fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()>;
+    fn info(&self);
 }
 
 pub trait Uart: Driver {

@@ -8,6 +8,7 @@ use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
+use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
 
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
@@ -30,6 +31,9 @@ impl Driver for Intc {
     }
 }
 impl InterruptController for Intc {
+    fn info(&self) {
+        todo!()
+    }
     fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()> {
         todo!()
     }

@@ -19,7 +19,6 @@ extern crate log;
 extern crate jrinx_driver as _;
 #[macro_use]
 extern crate jrinx_hal;
-
 mod arch;
 mod bootargs;
 mod panic;
@@ -54,7 +53,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
-    jrinx_driver::irq::irq_dispatch::single_cpu_strategy();
+    jrinx_driver::irq::irq_dispatch::min_count_cpu_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -72,10 +71,6 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_vmm::init();
 
     runtime::init(primary_task());
-    // hal!().interrupt().with_saved_on
-    // (|| {
-    //    loop{}
-    // });
     boot_set_ready();
 
     Runtime::start();
@@ -91,9 +86,7 @@ fn secondary_init() -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_vmm::init();
-
     runtime::init(secondary_task());
-
     boot_set_ready();
 
     Runtime::start();
@@ -108,10 +101,12 @@ async fn primary_task() {
         }
         core::hint::spin_loop();
     }
-
+    loop {
+    }
     bootargs::execute().await;
 }
 
 async fn secondary_task() {
     info!("secondary task started");
+    loop {}
 }

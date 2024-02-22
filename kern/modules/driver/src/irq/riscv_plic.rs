@@ -2,7 +2,7 @@ use super::irq_manager::IrqManager;
 use super::riscv_intc::{self, Intc};
 use crate::io::{Io, Mmio};
 use crate::irq::riscv_intc::{GLOBAL_INTC, IRQ_TABLE};
-use crate::{Driver, InterruptController, InterruptHandler};
+use crate::{irq, Driver, InterruptController, InterruptHandler};
 use alloc::sync::Arc;
 use core::ops::Range;
 use fdt::node::{self, FdtNode, NodeProperty};
@@ -97,6 +97,23 @@ fn get_context_id(cpu_id: usize) -> usize {
     }
 }    
 impl PLICInner {
+    fn info(&mut self){
+        info!("cpu enable bit is {} {} {} {} {}",self.enable_base.add(get_context_id(0) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
+        self.enable_base.add(get_context_id(1) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
+        self.enable_base.add(get_context_id(2) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
+        self.enable_base.add(get_context_id(3) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
+        self.enable_base.add(get_context_id(4) * PLIC_ENABLE_CONTEXT_OFFSET).read()
+            );
+        info!("cpu threshold is {} {} {} {} {}",self.context_base.add(get_context_id(0) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
+        self.context_base.add(get_context_id(1) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
+        self.context_base.add(get_context_id(2) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
+        self.context_base.add(get_context_id(3) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
+        self.context_base.add(get_context_id(4) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read());
+        for i in 0..5 {
+            self.set_threshold(get_context_id(i), 0);
+        }
+        info!("current cpu is {}",hal!().cpu().id());
+    }
     fn init(&mut self, context_max_id: usize) {
         for i in 0..=context_max_id {
             self.disable_all(i);
@@ -108,6 +125,7 @@ impl PLICInner {
     }
     fn get_current_cpu_claim(&mut self) -> Option<usize> {
         let context_id = get_current_context_id();
+        info!("current cpu is {}",hal!().cpu().id());
         let irq_num = self
             .context_base
             .add(context_id * PLIC_CONTEXT_HART_OFFSET)
@@ -192,11 +210,15 @@ impl Driver for Plic {
     fn handle_irq(&self, _: usize) {
         let mut inner = self.inner.lock();
         let irq_num = inner.get_current_cpu_claim().unwrap();
+        info!("current cpu claim is {}",irq_num);
         inner.irq_manager.handle_irq(irq_num);
         inner.end_of_interrupt(irq_num);
     }
 }
 impl InterruptController for Plic {
+    fn info(&self){
+        self.inner.lock().info();
+    }
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
         let mut inner = self.inner.lock();
         let context_id = get_context_id(cpu_id);
