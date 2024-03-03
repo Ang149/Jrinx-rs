@@ -28,6 +28,7 @@ impl Driver for Intc {
     }
     fn handle_irq(&self, irq_num: usize) {
         IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().handle_irq(irq_num);
+        min_count_cpu_strategy();
     }
 }
 impl InterruptController for Intc {

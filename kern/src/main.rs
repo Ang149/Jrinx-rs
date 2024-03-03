@@ -53,7 +53,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
-    jrinx_driver::irq::irq_dispatch::min_count_cpu_strategy();
+    jrinx_driver::irq::irq_dispatch::init_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }

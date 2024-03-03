@@ -1,6 +1,6 @@
 use core::sync::atomic::AtomicUsize;
 
-use jrinx_hal::{hal, Cpu, Hal};
+use jrinx_hal::{cpu, hal, Cpu, Hal};
 
 use super::{riscv_intc::IRQ_TABLE, riscv_plic::PLIC_PHANDLE};
 static mut INTERRUPT_COUNT: [usize; 5] = [0, 0, 0, 0, 0];
@@ -13,6 +13,16 @@ impl IrqDispatch {
         self.strategy_num
     }
 }
+pub fn init_strategy(){
+    let cpu_id = hal!().cpu().id();
+    unsafe { INTERRUPT_COUNT [cpu_id] = 1;}
+    IRQ_TABLE
+        .write()
+        .get(PLIC_PHANDLE.get().unwrap())
+        .unwrap()
+        .lock()
+        .enable(cpu_id, 10);
+}
 pub fn single_cpu_strategy() {
     IRQ_TABLE
         .write()
@@ -20,6 +30,12 @@ pub fn single_cpu_strategy() {
         .unwrap()
         .lock()
         .enable(hal!().cpu().id(), 10);
+    IRQ_TABLE
+        .write()
+        .get(PLIC_PHANDLE.get().unwrap())
+        .unwrap()
+        .lock()
+        .enable(hal!().cpu().id(), 8);
 }
 pub fn min_count_cpu_strategy() {
     let mut min_index = 0;

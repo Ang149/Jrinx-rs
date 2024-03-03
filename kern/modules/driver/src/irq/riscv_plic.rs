@@ -236,7 +236,6 @@ impl InterruptController for Plic {
     fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()> {
         let mut inner = self.inner.lock();
         inner.irq_manager.register_device(irq_num, dev);
-        // inner.enable(get_current_context_id(), irq_num);
         inner.set_priority(irq_num, 7);
         Ok(())
     }

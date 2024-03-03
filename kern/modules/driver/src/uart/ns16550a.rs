@@ -26,7 +26,7 @@ fn probe(node: &FdtNode) -> Result<()> {
         .ok_or(InternalError::DevProbeError)?
         .next()
         .ok_or(InternalError::DevProbeError)?;
-    let addr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
+    let vaddr = region.starting_address as usize + EXTERNAL_DEVICE_REGION.addr;
     let size = region.size.ok_or(InternalError::DevProbeError)?;
     let irq_num = node
         .interrupts()
@@ -43,7 +43,7 @@ fn probe(node: &FdtNode) -> Result<()> {
 
     unsafe {
         BootPageTable.map(
-            VirtAddr::new(addr),
+            VirtAddr::new(vaddr),
             PhysAddr::new(region.starting_address as usize),
         );
     }
@@ -53,7 +53,7 @@ fn probe(node: &FdtNode) -> Result<()> {
         .get(&interrupt_parent)
         .unwrap()
         .lock()
-        .register_device(irq_num, Arc::new(NS16550a::new(addr)));
+        .register_device(irq_num, Arc::new(NS16550a::new(vaddr)));
     Ok(())
 }
 bitflags! {

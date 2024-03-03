@@ -6,6 +6,8 @@ pub enum InternalError {
     DevProbeError,
     DevReadError,
     DevWriteError,
+    DevBadState,
+    DevNetAgain,
     ElfParseError,
     NotEnoughMem,
     InvalidCpuId,
@@ -18,6 +20,7 @@ pub enum InternalError {
     InvalidInspectorStatus,
     InvalidRuntimeStatus,
     InvalidRuntimeSchedTable,
+    InvalidParam,
     DuplicateRuntimeSchedTable,
     InvalidTimedEventStatus,
 }

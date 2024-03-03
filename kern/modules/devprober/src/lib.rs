@@ -37,7 +37,18 @@ pub fn probe_all_device(fdt: &Fdt) -> Result<()> {
         .unwrap();
     info!("Root compatible: {}", ROOT_COMPATIBLE.get().unwrap());
     let mut devprober_list: Vec<_> = devprober_iter().collect();
-    devprober_list.sort_unstable_by(|a, b| b.ident.cmp(&a.ident));
+    let _riscv_intc_index = devprober_list.iter().enumerate().find(|devprober|{
+        devprober.1.ident == DevIdent::Compatible("riscv,cpu-intc") 
+    }).unwrap().0;
+    devprober_list.swap(_riscv_intc_index, 0);
+    let _plic_intc_index = devprober_list.iter().enumerate().find(|devprober|{
+        devprober.1.ident == DevIdent::Compatible("sifive,plic-1.0.0") || devprober.1.ident == DevIdent::Compatible("riscv,plic0")
+    }).unwrap().0;
+    devprober_list.swap(_plic_intc_index, 1);
+    let _memory_index = devprober_list.iter().enumerate().find(|devprober|{
+        devprober.1.ident == DevIdent::DeviceType("memory")
+    }).unwrap().0;
+    devprober_list.swap(_memory_index, 2);
     for devprober in &devprober_list{
         info!("{:?}", devprober.ident);
     }

@@ -6,21 +6,26 @@
 	compatible = "riscv-virtio";
 	model = "riscv-virtio,qemu";
 
-	fw-cfg@10100000 {
-		dma-coherent;
-		reg = <0x00 0x10100000 0x00 0x18>;
-		compatible = "qemu,fw-cfg-mmio";
+	poweroff {
+		value = <0x5555>;
+		offset = <0x00>;
+		regmap = <0x0c>;
+		compatible = "syscon-poweroff";
 	};
 
-	flash@20000000 {
-		bank-width = <0x04>;
-		reg = <0x00 0x20000000 0x00 0x2000000 0x00 0x22000000 0x00 0x2000000>;
-		compatible = "cfi-flash";
+	reboot {
+		value = <0x7777>;
+		offset = <0x00>;
+		regmap = <0x0c>;
+		compatible = "syscon-reboot";
 	};
 
-	chosen {
-		bootargs = [00];
-		stdout-path = "/soc/uart@10000000";
+	platform-bus@4000000 {
+		interrupt-parent = <0x0b>;
+		ranges = <0x00 0x00 0x4000000 0x2000000>;
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		compatible = "qemu,platform\0simple-bus";
 	};
 
 	memory@80000000 {
@@ -39,8 +44,10 @@
 			reg = <0x00>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcsu";
-			mmu-type = "riscv,sv48";
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type = "riscv,sv57";
 
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
@@ -56,8 +63,10 @@
 			reg = <0x01>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcsu";
-			mmu-type = "riscv,sv48";
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type = "riscv,sv57";
 
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
@@ -73,8 +82,10 @@
 			reg = <0x02>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcsu";
-			mmu-type = "riscv,sv48";
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type = "riscv,sv57";
 
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
@@ -90,8 +101,10 @@
 			reg = <0x03>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcsu";
-			mmu-type = "riscv,sv48";
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type = "riscv,sv57";
 
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
@@ -107,8 +120,10 @@
 			reg = <0x04>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcsu";
-			mmu-type = "riscv,sv48";
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type = "riscv,sv57";
 
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
@@ -145,6 +160,28 @@
 		};
 	};
 
+	pmu {
+		riscv,event-to-mhpmcounters = <0x01 0x01 0x7fff9 0x02 0x02 0x7fffc 0x10019 0x10019 0x7fff8 0x1001b 0x1001b 0x7fff8 0x10021 0x10021 0x7fff8>;
+		compatible = "riscv,pmu";
+	};
+
+	fw-cfg@10100000 {
+		dma-coherent;
+		reg = <0x00 0x10100000 0x00 0x18>;
+		compatible = "qemu,fw-cfg-mmio";
+	};
+
+	flash@20000000 {
+		bank-width = <0x04>;
+		reg = <0x00 0x20000000 0x00 0x2000000 0x00 0x22000000 0x00 0x2000000>;
+		compatible = "cfi-flash";
+	};
+
+	chosen {
+		stdout-path = "/soc/serial@10000000";
+		rng-seed = <0x6009871b 0x7f3d5bf8 0xd716cbcd 0xef4cfaa9 0xb7e1bc7 0xf29279ec 0x90e9ed55 0x1cf8fbc2>;
+	};
+
 	soc {
 		#address-cells = <0x02>;
 		#size-cells = <0x02>;
@@ -158,26 +195,12 @@
 			compatible = "google,goldfish-rtc";
 		};
 
-		uart@10000000 {
+		serial@10000000 {
 			interrupts = <0x0a>;
 			interrupt-parent = <0x0b>;
 			clock-frequency = "\08@";
 			reg = <0x00 0x10000000 0x00 0x100>;
 			compatible = "ns16550a";
-		};
-
-		poweroff {
-			value = <0x5555>;
-			offset = <0x00>;
-			regmap = <0x0c>;
-			compatible = "syscon-poweroff";
-		};
-
-		reboot {
-			value = <0x7777>;
-			offset = <0x00>;
-			regmap = <0x0c>;
-			compatible = "syscon-reboot";
 		};
 
 		test@100000 {
@@ -259,13 +282,13 @@
 
 		plic@c000000 {
 			phandle = <0x0b>;
-			riscv,ndev = <0x35>;
-			reg = <0x00 0xc000000 0x00 0x210000>;
+			riscv,ndev = <0x5f>;
+			reg = <0x00 0xc000000 0x00 0x600000>;
 			interrupts-extended = <0x0a 0x0b 0x0a 0x09 0x08 0x0b 0x08 0x09 0x06 0x0b 0x06 0x09 0x04 0x0b 0x04 0x09 0x02 0x0b 0x02 0x09>;
 			interrupt-controller;
 			compatible = "sifive,plic-1.0.0\0riscv,plic0";
-			#interrupt-cells = <0x01>;
 			#address-cells = <0x00>;
+			#interrupt-cells = <0x01>;
 		};
 
 		clint@2000000 {

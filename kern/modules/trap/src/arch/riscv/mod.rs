@@ -189,5 +189,4 @@ extern "C" fn handle_kern_trap(ctx: &mut Context) {
             GLOBAL_INTC.get().unwrap().handle_irq(0);
         }
     }
-    info!("trap finished");
 }
