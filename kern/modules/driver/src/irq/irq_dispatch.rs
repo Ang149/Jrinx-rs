@@ -29,13 +29,19 @@ pub fn single_cpu_strategy() {
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
+        .enable(hal!().cpu().id(), 8);
+    IRQ_TABLE
+        .write()
+        .get(PLIC_PHANDLE.get().unwrap())
+        .unwrap()
+        .lock()
         .enable(hal!().cpu().id(), 10);
     IRQ_TABLE
         .write()
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(hal!().cpu().id(), 8);
+        .info();
 }
 pub fn min_count_cpu_strategy() {
     let mut min_index = 0;

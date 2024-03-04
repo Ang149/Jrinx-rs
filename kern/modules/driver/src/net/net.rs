@@ -22,32 +22,34 @@ use virtio_drivers::{
     },
     Hal,
 };
-
+use spin::Mutex;
 use super::net_buf::NetBufPtr;
 const NET_BUF_LEN: usize = 1526;
 //QS is virtio queue size
+pub struct VirtIoNetMutex<H: Hal, T: Transport, const QS: usize>{
+    inner: Mutex<VirtIoNetDev<H,T,QS>>
+}
 pub struct VirtIoNetDev<H: Hal, T: Transport, const QS: usize> {
     rx_buffers: [Option<Box<NetBuf>>; QS],
     tx_buffers: [Option<Box<NetBuf>>; QS],
     free_tx_bufs: Vec<Box<NetBuf>>,
     buf_pool: Arc<NetBufPool>,
-    inner: VirtIONetRaw<H, T, QS>,
+    raw: VirtIONetRaw<H, T, QS>,
 }
 unsafe impl<H: Hal, T: Transport, const QS: usize> Send for VirtIoNetDev<H, T, QS> {}
 unsafe impl<H: Hal, T: Transport, const QS: usize> Sync for VirtIoNetDev<H, T, QS> {}
 impl<H: Hal + 'static, T: Transport + 'static, const QS: usize> VirtIoNetDev<H, T, QS> {
-    pub fn new(transport: T, interrupt_parent: usize, irq_num: usize) -> Result<()> {
-        {
+    pub fn new(transport: T) -> Result<VirtIoNetDev<H,T,QS>> {
             let mut inner = VirtIONetRaw::new(transport).unwrap();
             const NONE_BUF: Option<Box<NetBuf>> = None;
             let rx_buffers = [NONE_BUF; QS];
             let tx_buffers = [NONE_BUF; QS];
             let buf_pool = NetBufPool::new(2 * QS, NET_BUF_LEN).unwrap();
             let free_tx_bufs = Vec::with_capacity(QS);
-            info!("mac is {:?},irq is {:?}", inner.mac_address(), irq_num);
+            info!("mac is {:?}", inner.mac_address());
             let mut dev = Self {
                 rx_buffers,
-                inner,
+                raw: inner,
                 tx_buffers,
                 free_tx_bufs,
                 buf_pool,
@@ -59,7 +61,7 @@ impl<H: Hal + 'static, T: Transport + 'static, const QS: usize> VirtIoNetDev<H, 
                     .alloc_boxed()
                     .ok_or(InternalError::NotEnoughMem)?;
                 // Safe because the buffer lives as long as the queue.
-                let token = unsafe { dev.inner.receive_begin(rx_buf.raw_buf_mut()).unwrap() };
+                let token = unsafe { dev.raw.receive_begin(rx_buf.raw_buf_mut()).unwrap() };
                 assert_eq!(token, i as u16);
                 *rx_buf_place = Some(rx_buf);
             }
@@ -72,46 +74,61 @@ impl<H: Hal + 'static, T: Transport + 'static, const QS: usize> VirtIoNetDev<H, 
                     .ok_or(InternalError::NotEnoughMem)?;
                 // Fill header
                 let hdr_len = dev
-                    .inner
+                    .raw
                     .fill_buffer_header(tx_buf.raw_buf_mut())
                     .or(Err(InternalError::InvalidParam))?;
                 tx_buf.set_header_len(hdr_len);
                 dev.free_tx_bufs.push(tx_buf);
             }
-            IRQ_TABLE
-                .write()
-                .get(&interrupt_parent)
-                .unwrap()
-                .lock()
-                .register_device(irq_num, Arc::new(dev));
-            Ok(())
+            Ok(dev)
         }
     }
-}
 
-impl<H: Hal, T: Transport, const QS: usize> Driver for VirtIoNetDev<H, T, QS> {
+impl<H: Hal+'static, T: Transport+'static, const QS: usize> VirtIoNetMutex<H, T, QS>{
+    pub fn new(transport: T, interrupt_parent: usize, irq_num: usize) -> Result<()>{
+        let dev = Self{
+            inner:Mutex::new(VirtIoNetDev::new(transport).unwrap())
+        };
+        IRQ_TABLE
+        .write()
+        .get(&interrupt_parent)
+        .unwrap()
+        .lock()
+        .register_device(irq_num, Arc::new(dev));
+        Ok(())
+    }
+}
+impl<H: Hal, T: Transport, const QS: usize> Driver for VirtIoNetMutex<H, T, QS> {
     fn name(&self) -> &str {
         "virtio-net"
     }
 
-    fn handle_irq(&self, irq_num: usize) {
-        todo!()
+    fn handle_irq(&self, irq_num: usize){
+        let rx_buf = match self.inner.lock().receive() {
+            Ok(buf) => {info!("received packet len is {}",buf.packet_len());},
+            Err(err) => {
+                if !matches!(err, InternalError::DevNetAgain) {
+                    warn!("receive failed: {:?}", err);
+                }
+            }
+        };
+
     }
 }
 impl<H: Hal, T: Transport, const QS: usize> VirtioNet for VirtIoNetDev<H, T, QS> {
     #[inline]
     fn mac_address(&self) -> EthernetAddress {
-        EthernetAddress(self.inner.mac_address())
+        EthernetAddress(self.raw.mac_address())
     }
 
     #[inline]
     fn can_transmit(&self) -> bool {
-        !self.free_tx_bufs.is_empty() && self.inner.can_send()
+        !self.free_tx_bufs.is_empty() && self.raw.can_send()
     }
 
     #[inline]
     fn can_receive(&self) -> bool {
-        self.inner.poll_receive().is_some()
+        self.raw.poll_receive().is_some()
     }
 
     #[inline]
@@ -128,7 +145,7 @@ impl<H: Hal, T: Transport, const QS: usize> VirtioNet for VirtIoNetDev<H, T, QS>
         let mut rx_buf = unsafe { NetBuf::from_buf_ptr(rx_buf) };
         // Safe because we take the ownership of `rx_buf` back to `rx_buffers`,
         // it lives as long as the queue.
-        let new_token = unsafe { self.inner.receive_begin(rx_buf.raw_buf_mut()).unwrap() };
+        let new_token = unsafe { self.raw.receive_begin(rx_buf.raw_buf_mut()).unwrap() };
         // `rx_buffers[new_token]` is expected to be `None` since it was taken
         // away at `Self::receive()` and has not been added back.
         if self.rx_buffers[new_token as usize].is_some() {
@@ -139,12 +156,12 @@ impl<H: Hal, T: Transport, const QS: usize> VirtioNet for VirtIoNetDev<H, T, QS>
     }
 
     fn recycle_tx_buffers(&mut self) -> Result<()> {
-        while let Some(token) = self.inner.poll_transmit() {
+        while let Some(token) = self.raw.poll_transmit() {
             let tx_buf = self.tx_buffers[token as usize]
                 .take()
                 .ok_or(InternalError::DevBadState)?;
             unsafe {
-                self.inner
+                self.raw
                     .transmit_complete(token, tx_buf.packet_with_header())
                     .unwrap();
             }
@@ -159,7 +176,7 @@ impl<H: Hal, T: Transport, const QS: usize> VirtioNet for VirtIoNetDev<H, T, QS>
         let tx_buf = unsafe { NetBuf::from_buf_ptr(tx_buf) };
         // 1. transmit packet.
         let token = unsafe {
-            self.inner
+            self.raw
                 .transmit_begin(tx_buf.packet_with_header())
                 .unwrap()
         };
@@ -168,13 +185,13 @@ impl<H: Hal, T: Transport, const QS: usize> VirtioNet for VirtIoNetDev<H, T, QS>
     }
 
     fn receive(&mut self) -> Result<NetBufPtr> {
-        if let Some(token) = self.inner.poll_receive() {
+        if let Some(token) = self.raw.poll_receive() {
             let mut rx_buf = self.rx_buffers[token as usize]
                 .take()
                 .ok_or(InternalError::DevBadState)?;
             // Safe because the buffer lives as long as the queue.
             let (hdr_len, pkt_len) = unsafe {
-                self.inner
+                self.raw
                     .receive_complete(token, rx_buf.raw_buf_mut())
                     .unwrap()
             };

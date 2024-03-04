@@ -146,11 +146,18 @@ impl PLICInner {
             .write(irq_num as _);
     }
     fn enable(&mut self, context_id: usize, irq_num: usize) {
+        info!("irq_num is {}",irq_num);
         debug_assert!(self.is_valid(irq_num));
+        let content = self
+            .enable_base
+            .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
+            .add(irq_num / 32)
+            .read();
         self.enable_base
             .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
-            .write(1 << (irq_num % 32) as u32);
+            .write(1 << (irq_num % 32) | content);
+        info!("content is {:x}",content);
     }
     fn disable(&mut self, context_id: usize, irq_num: usize) {
         debug_assert!(self.is_valid(irq_num));
@@ -162,7 +169,7 @@ impl PLICInner {
         self.enable_base
             .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
-            .write(0 << (irq_num % 32) & content);
+            .write(0 << (irq_num % 32) | content);
     }
     fn disable_all(&mut self, context_id: usize) {
         for i in 0..128 {

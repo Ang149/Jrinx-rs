@@ -16,7 +16,7 @@ use virtio_drivers::{
     Hal,
 };
 
-use crate::{bus::virtio::VirtioHal, irq, net::net::VirtIoNetDev};
+use crate::{bus::virtio::VirtioHal, irq, net::net::{VirtIoNetDev, VirtIoNetMutex}};
 
 #[devprober(compatible = "virtio,mmio")]
 fn probe(node: &FdtNode) -> Result<()> {
@@ -72,7 +72,7 @@ fn virtio_device(transport: MmioTransport,interrupt_parent:usize,irq_num:usize) 
         DeviceType::Block => {},
         DeviceType::GPU => {},
         DeviceType::Input => {},
-        DeviceType::Network => VirtIoNetDev::<VirtioHal, MmioTransport, 64>::new(transport,interrupt_parent,irq_num).unwrap(),
+        DeviceType::Network => VirtIoNetMutex::<VirtioHal, MmioTransport, 64>::new(transport,interrupt_parent,irq_num).unwrap(),
         t => warn!("Unrecognized virtio device: {:?}",t),
     }
 }

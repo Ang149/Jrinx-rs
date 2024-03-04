@@ -8,7 +8,8 @@ use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
-use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
+use super::irq_dispatch::single_cpu_strategy;
+//use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
 
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
@@ -28,7 +29,7 @@ impl Driver for Intc {
     }
     fn handle_irq(&self, irq_num: usize) {
         IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().handle_irq(irq_num);
-        min_count_cpu_strategy();
+        IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().info();
     }
 }
 impl InterruptController for Intc {

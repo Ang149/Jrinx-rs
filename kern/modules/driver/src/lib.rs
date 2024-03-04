@@ -53,7 +53,7 @@ pub trait Uart: Driver {
     fn write_str(&self, data: &str) -> Result<()>;
 }
 pub struct EthernetAddress(pub [u8; 6]);
-pub trait VirtioNet: Driver {
+pub trait VirtioNet {
     /// The ethernet address of the NIC.
     fn mac_address(&self) -> EthernetAddress;
 
