@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(used_with_arg)]
-#![allow(unused)]
 #![feature(allocator_api)]
 extern crate alloc;
 

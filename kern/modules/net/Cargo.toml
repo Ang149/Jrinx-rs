@@ -1,0 +1,27 @@
+[package]
+name = "jrinx-net"
+version = "0.1.0"
+edition = "2021"
+[features]
+smoltcp = []
+default = []
+
+[dependencies]
+log = "0.4"
+cfg-if = "1.0"
+spin = "0.9"
+jrinx-driver = {version = "0.1.0", path = "../driver"}
+jrinx-error = { version = "0.1.0", path = "../error" }
+[dependencies.smoltcp]
+git = "https://github.com/rcore-os/smoltcp.git"
+rev = "2ade274"
+default-features = false
+features = [
+  "alloc", "log",   # no std
+  "medium-ethernet",
+  "proto-ipv4",
+  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
+  # "fragmentation-buffer-size-65536", "proto-ipv4-fragmentation",
+  # "reassembly-buffer-size-65536", "reassembly-buffer-count-32",
+  # "assembler-max-segment-count-32",
+]

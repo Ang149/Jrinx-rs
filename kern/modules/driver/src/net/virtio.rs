@@ -1,12 +1,14 @@
 use core::ptr::NonNull;
 
+use alloc::sync::Arc;
 use fdt::node::FdtNode;
 use jrinx_addr::{PhysAddr, VirtAddr};
 use jrinx_config::{EXTERNAL_DEVICE_REGION, PAGE_SIZE};
 use jrinx_devprober::devprober;
-use jrinx_error::{InternalError,Result};
+use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Hal as _, Vm};
 use jrinx_paging::boot::BootPageTable;
+use spin::Once;
 use virtio_drivers::{
     device::{blk::VirtIOBlk, gpu::VirtIOGpu, input::VirtIOInput, net::VirtIONetRaw},
     transport::{
@@ -16,7 +18,11 @@ use virtio_drivers::{
     Hal,
 };
 
-use crate::{bus::virtio::VirtioHal, irq, net::net::{VirtIoNetDev, VirtIoNetMutex}};
+use crate::{
+    bus::virtio::VirtioHal,
+    irq::riscv_intc::IRQ_TABLE,
+    net::virtio_net::{VirtIoNetInner, VirtIoNetMutex},
+};
 
 #[devprober(compatible = "virtio,mmio")]
 fn probe(node: &FdtNode) -> Result<()> {
@@ -30,23 +36,20 @@ fn probe(node: &FdtNode) -> Result<()> {
     let size = region.size.ok_or(InternalError::DevProbeError)?;
     let count = size / PAGE_SIZE;
     let interrupt_parent = node
-    .interrupt_parent()
-    .ok_or(InternalError::DevProbeError)?
-    .property("phandle")
-    .ok_or(InternalError::DevProbeError)?
-    .as_usize()
-    .unwrap();
+        .interrupt_parent()
+        .ok_or(InternalError::DevProbeError)?
+        .property("phandle")
+        .ok_or(InternalError::DevProbeError)?
+        .as_usize()
+        .unwrap();
     let irq_num = node
-    .interrupts()
-    .ok_or(InternalError::DevProbeError)?
-    .next()
-    .ok_or(InternalError::DevProbeError)?;
-    info!("vaddr is {:x?}, count is {:x?}",vaddr,count);
+        .interrupts()
+        .ok_or(InternalError::DevProbeError)?
+        .next()
+        .ok_or(InternalError::DevProbeError)?;
+    info!("vaddr is {:x?}, count is {:x?}", vaddr, count);
     unsafe {
-        BootPageTable.map(
-            VirtAddr::new(vaddr),
-            PhysAddr::new(paddr),
-        );
+        BootPageTable.map(VirtAddr::new(vaddr), PhysAddr::new(paddr));
     }
     hal!().vm().sync_all();
     let header = NonNull::new(vaddr as *mut VirtIOHeader).unwrap();
@@ -59,20 +62,30 @@ fn probe(node: &FdtNode) -> Result<()> {
                 transport.device_type(),
                 transport.version(),
             );
-            let dev = virtio_device(transport,interrupt_parent,irq_num);
-            
+            let dev = virtio_device(transport, interrupt_parent, irq_num);
         }
     }
 
     Ok(())
 }
-fn virtio_device(transport: MmioTransport,interrupt_parent:usize,irq_num:usize) {
-    info!("virtio type is {:?}",transport.device_type());
+fn virtio_device(transport: MmioTransport, interrupt_parent: usize, irq_num: usize) {
+    info!("virtio type is {:?}", transport.device_type());
     match transport.device_type() {
-        DeviceType::Block => {},
-        DeviceType::GPU => {},
-        DeviceType::Input => {},
-        DeviceType::Network => VirtIoNetMutex::<VirtioHal, MmioTransport, 64>::new(transport,interrupt_parent,irq_num).unwrap(),
-        t => warn!("Unrecognized virtio device: {:?}",t),
+        DeviceType::Block => {}
+        DeviceType::GPU => {}
+        DeviceType::Input => {}
+        DeviceType::Network => {
+            let dev = Arc::new(VirtIoNetMutex::new(VirtIoNetInner::new(transport).unwrap()));
+            IRQ_TABLE
+                .write()
+                .get(&interrupt_parent)
+                .unwrap()
+                .lock()
+                .register_device(irq_num, dev.clone())
+                .unwrap();
+            VIRTIO_DEVICE.call_once(|| dev.clone());
+        }
+        t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
+pub static VIRTIO_DEVICE: Once<Arc<VirtIoNetMutex>> = Once::new();

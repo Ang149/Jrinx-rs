@@ -6,8 +6,12 @@ pub enum InternalError {
     DevProbeError,
     DevReadError,
     DevWriteError,
+    //net
     DevBadState,
-    DevNetAgain,
+    NetAgain,
+    NetFail,
+    WouldBlock,
+    //net
     ElfParseError,
     NotEnoughMem,
     InvalidCpuId,

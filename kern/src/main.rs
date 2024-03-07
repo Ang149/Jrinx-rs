@@ -8,6 +8,7 @@
 #![no_main]
 
 use arch::BootInfo;
+use jrinx_driver::net::virtio::VIRTIO_DEVICE;
 use jrinx_hal::{Cpu, Hal};
 use jrinx_multitask::runtime::{self, Runtime};
 use spin::Mutex;
@@ -69,8 +70,9 @@ fn primary_init(boot_info: BootInfo) -> ! {
     );
 
     jrinx_vmm::init();
-
+    jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
     runtime::init(primary_task());
+
     boot_set_ready();
 
     Runtime::start();
@@ -101,8 +103,7 @@ async fn primary_task() {
         }
         core::hint::spin_loop();
     }
-    loop {
-    }
+    loop {}
     bootargs::execute().await;
 }
 
