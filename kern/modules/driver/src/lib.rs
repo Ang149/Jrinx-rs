@@ -12,18 +12,12 @@ pub mod irq;
 mod mem;
 pub mod net;
 pub mod uart;
-use core::cell::RefCell;
+
 
 use alloc::{boxed::Box, sync::Arc};
 use fdt::Fdt;
 use jrinx_error::Result;
-use jrinx_hal::{hal, Hal};
 use net::net_buf::NetBufPtr;
-
-pub struct UPIntrFreeCell<T> {
-    /// inner data
-    inner: RefCell<T>,
-}
 
 pub fn probe_all(fdt: &Fdt<'_>) {
     info!("probing all devices");

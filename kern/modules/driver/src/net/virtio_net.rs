@@ -1,22 +1,19 @@
-use core::{any::Any, ptr::NonNull};
+
 
 use super::net_buf::NetBufPtr;
-use crate::bus::{self, virtio::VirtioHal};
-use crate::irq::riscv_intc::IRQ_TABLE;
+use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
-use crate::{Driver, EthernetAddress, UPIntrFreeCell, VirtioNet};
+use crate::{Driver, EthernetAddress,VirtioNet};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use jrinx_error::{InternalError, Result};
 use spin::mutex::Mutex;
 use virtio_drivers::{
-    device::{blk::VirtIOBlk, gpu::VirtIOGpu, input::VirtIOInput, net::VirtIONetRaw},
-    transport::{
-        mmio::{MmioTransport, VirtIOHeader},
-        DeviceType, Transport,
-    },
-    Hal,
+    device::net::VirtIONetRaw,
+    transport::
+        mmio::MmioTransport,
+
 };
 const NET_BUF_LEN: usize = 1526;
 //QS is virtio queue size
@@ -35,7 +32,7 @@ unsafe impl Send for VirtIoNetInner {}
 unsafe impl Sync for VirtIoNetInner {}
 impl VirtIoNetInner {
     pub fn new(transport: MmioTransport) -> Result<VirtIoNetInner> {
-        let mut inner = VirtIONetRaw::new(transport).unwrap();
+        let inner = VirtIONetRaw::new(transport).unwrap();
         const NONE_BUF: Option<Box<NetBuf>> = None;
         let rx_buffers = [NONE_BUF; QS];
         let tx_buffers = [NONE_BUF; QS];
@@ -81,13 +78,6 @@ impl VirtIoNetInner {
 
 impl VirtIoNetMutex {
     pub fn new(net_dev: VirtIoNetInner) -> Self{
-        // IRQ_TABLE
-        //     .write()
-        //     .get(&interrupt_parent)
-        //     .unwrap()
-        //     .lock()
-        //     .register_device(irq_num, Arc::new(dev))
-        //     .unwrap();
         Self {
             inner: Mutex::new(net_dev),
         }
@@ -98,17 +88,24 @@ impl Driver for VirtIoNetMutex {
         "virtio-net"
     }
 
-    fn handle_irq(&self, irq_num: usize) {
+    fn handle_irq(&self, _irq_num: usize) {
+        if let Err(e) = self.inner.lock().recycle_tx_buffers() {
+            warn!("recycle_tx_buffers failed: {:?}", e);
+        }
+
+        if !self.inner.lock().can_transmit() {
+            return;
+        }
         let rx_buf = match self.inner.lock().receive() {
-            Ok(buf) => {
-                info!("received packet len is {}", buf.packet_len());
-            }
+            Ok(buf) => buf,
             Err(err) => {
-                if !matches!(err, InternalError::NetAgain) {
+                if !matches!(&err, InternalError) {
                     warn!("receive failed: {:?}", err);
                 }
+                return ;
             }
         };
+        info!("packet bytes {:2x?}",rx_buf.packet());
         self.inner.lock().raw.ack_interrupt();
     }
 }

@@ -9,17 +9,12 @@ use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Hal as _, Vm};
 use jrinx_paging::boot::BootPageTable;
 use spin::Once;
-use virtio_drivers::{
-    device::{blk::VirtIOBlk, gpu::VirtIOGpu, input::VirtIOInput, net::VirtIONetRaw},
-    transport::{
-        mmio::{MmioTransport, VirtIOHeader},
-        DeviceType, Transport,
-    },
-    Hal,
+use virtio_drivers::transport::{
+    mmio::{MmioTransport, VirtIOHeader},
+    DeviceType, Transport,
 };
 
 use crate::{
-    bus::virtio::VirtioHal,
     irq::riscv_intc::IRQ_TABLE,
     net::virtio_net::{VirtIoNetInner, VirtIoNetMutex},
 };
@@ -62,14 +57,14 @@ fn probe(node: &FdtNode) -> Result<()> {
                 transport.device_type(),
                 transport.version(),
             );
-            let dev = virtio_device(transport, interrupt_parent, irq_num);
+            virtio_device(transport, interrupt_parent, irq_num);
         }
     }
 
     Ok(())
 }
 fn virtio_device(transport: MmioTransport, interrupt_parent: usize, irq_num: usize) {
-    info!("virtio type is {:?}", transport.device_type());
+    //info!("virtio type is {:?}", transport.device_type());
     match transport.device_type() {
         DeviceType::Block => {}
         DeviceType::GPU => {}

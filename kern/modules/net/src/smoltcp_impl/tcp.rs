@@ -531,7 +531,7 @@ impl TcpSocket {
                 SOCKET_SET.get().unwrap().poll_interfaces();
                 match f() {
                     Ok(t) => return Ok(t),
-                    Err(InternalError::WouldBlock) => todo!("yield"),
+                    Err(InternalError::WouldBlock) => {},
                     Err(e) => return Err(e),
                 }
             }

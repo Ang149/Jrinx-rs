@@ -1,6 +1,6 @@
-use core::sync::atomic::AtomicUsize;
 
-use jrinx_hal::{cpu, hal, Cpu, Hal};
+#![warn(unused_variables)]
+use jrinx_hal::{ hal, Cpu, Hal};
 
 use super::{riscv_intc::IRQ_TABLE, riscv_plic::PLIC_PHANDLE};
 static mut INTERRUPT_COUNT: [usize; 5] = [0, 0, 0, 0, 0];
@@ -21,7 +21,7 @@ pub fn init_strategy(){
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(cpu_id, 10);
+        .enable(cpu_id, 10).unwrap();
 }
 pub fn single_cpu_strategy() {
     IRQ_TABLE
@@ -29,13 +29,13 @@ pub fn single_cpu_strategy() {
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(hal!().cpu().id(), 8);
+        .enable(hal!().cpu().id(), 8).unwrap();
     IRQ_TABLE
         .write()
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(hal!().cpu().id(), 10);
+        .enable(hal!().cpu().id(), 10).unwrap();
     IRQ_TABLE
         .write()
         .get(PLIC_PHANDLE.get().unwrap())
@@ -51,7 +51,7 @@ pub fn min_count_cpu_strategy() {
             .get(PLIC_PHANDLE.get().unwrap())
             .unwrap()
             .lock()
-            .disable(i, 10);
+            .disable(i, 10).unwrap();
         unsafe {
             if INTERRUPT_COUNT[min_index] > INTERRUPT_COUNT[i] {
                 min_index = i;
@@ -66,7 +66,7 @@ pub fn min_count_cpu_strategy() {
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(min_index, 10);
+        .enable(min_index, 10).unwrap();
     IRQ_TABLE
         .write()
         .get(PLIC_PHANDLE.get().unwrap())
@@ -86,12 +86,12 @@ pub fn rotate_strategy() {
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .disable((value + tmp - 1) % tmp, 10);
+        .disable((value + tmp - 1) % tmp, 10).unwrap();
     binding
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()
         .lock()
-        .enable(value + 0, 10);
+        .enable(value + 0, 10).unwrap();
     binding
         .get(PLIC_PHANDLE.get().unwrap())
         .unwrap()

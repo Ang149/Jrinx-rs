@@ -70,7 +70,6 @@ fn primary_init(boot_info: BootInfo) -> ! {
     );
 
     jrinx_vmm::init();
-    jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
     runtime::init(primary_task());
 
     boot_set_ready();
@@ -103,6 +102,7 @@ async fn primary_task() {
         }
         core::hint::spin_loop();
     }
+    jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
     loop {}
     bootargs::execute().await;
 }

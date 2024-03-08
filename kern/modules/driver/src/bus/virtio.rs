@@ -1,20 +1,11 @@
-#![no_std]
-#![feature(allocator_api)]
-use core::{ alloc::{Allocator, Layout}, borrow::BorrowMut, cell::RefCell, ptr::NonNull};
 
-use alloc::{alloc::Global, vec::Vec};
-use jrinx_addr::{PhysAddr, VirtAddr};
+use core::{ alloc::{Allocator, Layout} ,ptr::NonNull};
+
+use alloc::alloc::Global;
 use jrinx_config::{PAGE_SIZE, REMAP_MEM_OFFSET};
-use jrinx_paging::{boot::BootPageTable, common::PageTable};
-use jrinx_phys_frame::PhysFrame;
-use lazy_static::*;
-use spin::Mutex;
 use virtio_drivers::Hal;
 
-lazy_static! {
-    static ref QUEUE_FRAMES: Mutex<Vec<PhysFrame>> =
-        unsafe { Mutex::new(Vec::new()) };
-}
+
 
 pub struct VirtioHal;
 unsafe impl Hal for VirtioHal {

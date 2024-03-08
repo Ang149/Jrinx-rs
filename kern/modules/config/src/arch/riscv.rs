@@ -46,7 +46,7 @@ cfg_if! {
         };
         pub const EXTERNAL_DEVICE_REGION: VirtMemRegion = VirtMemRegion {
             addr: 0xFFFF_FFFF_0000_0000,
-            len: 0x0000_0000_1000_0000,
+            len: 0x0000_0000_F000_0000,
         };
     } else {
         compile_error!("unsupported target_arch");

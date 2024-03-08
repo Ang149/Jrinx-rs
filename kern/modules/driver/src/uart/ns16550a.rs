@@ -1,11 +1,9 @@
 use crate::io::{Io, Mmio, ReadOnly};
-use crate::irq::riscv_intc::{GLOBAL_INTC, IRQ_TABLE};
-use crate::{irq, Driver, Uart};
+use crate::irq::riscv_intc::IRQ_TABLE;
+use crate::Driver;
 use alloc::collections::VecDeque;
-use alloc::string::String;
 use alloc::sync::Arc;
 use bitflags::bitflags;
-use core::ops::{BitAnd, BitOr, Not};
 use fdt::node::FdtNode;
 use jrinx_addr::{PhysAddr, VirtAddr};
 use jrinx_config::EXTERNAL_DEVICE_REGION;
@@ -13,11 +11,7 @@ use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Hal, Vm};
 use jrinx_paging::boot::BootPageTable;
-use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
-use jrinx_phys_frame::PhysFrame;
-use jrinx_vmm::KERN_PAGE_TABLE;
-use log::{log, Level};
-use spin::{Mutex, Once};
+use spin::Mutex;
 
 #[devprober(compatible = "ns16550a")]
 fn probe(node: &FdtNode) -> Result<()> {
@@ -53,7 +47,9 @@ fn probe(node: &FdtNode) -> Result<()> {
         .get(&interrupt_parent)
         .unwrap()
         .lock()
-        .register_device(irq_num, Arc::new(NS16550a::new(vaddr)));
+        .register_device(irq_num, Arc::new(NS16550a::new(vaddr)))
+        .unwrap();
+    info!("ns16550a vaddr {:x}, size {:x}",vaddr,size);
     Ok(())
 }
 bitflags! {
@@ -117,7 +113,7 @@ impl NS16550Inner {
 impl NS16550a {
     fn new(base: usize) -> Self {
         let uart: &mut NS16550Inner = unsafe { Mmio::<u8>::from_base_as(base) };
-        uart.init();
+        uart.init().unwrap();
         Self {
             inner: Mutex::new(uart),
             buffer: Mutex::new(VecDeque::new()),
@@ -148,7 +144,7 @@ impl Driver for NS16550a {
     fn name(&self) -> &str {
         "ns16550a"
     }
-    fn handle_irq(&self, irq_num: usize) {
+    fn handle_irq(&self, _irq_num: usize) {
         while let Some(ch) = self.inner.lock().read() {
             info!("ns16550a handle irq and read {}", ch as char);
             self.buffer.lock().push_back(ch);

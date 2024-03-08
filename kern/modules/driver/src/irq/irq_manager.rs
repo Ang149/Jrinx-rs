@@ -1,14 +1,13 @@
+
 use crate::Driver;
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::Range;
-use spin::Once;
 pub struct IrqManager {
     irq_range: Range<usize>,
     table: BTreeMap<usize, Option<Arc<dyn Driver>>>,
 }
 impl IrqManager {
     pub fn new(irq_range: Range<usize>) -> Self {
-        const EMPTY_DRIVER: Option<Arc<dyn Driver>> = None;
         Self {
             irq_range,
             table: BTreeMap::<usize, Option<Arc<dyn Driver>>>::new(),

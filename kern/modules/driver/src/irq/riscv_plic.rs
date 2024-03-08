@@ -1,19 +1,15 @@
 use super::irq_manager::IrqManager;
-use super::riscv_intc::{self, Intc};
 use crate::io::{Io, Mmio};
-use crate::irq::riscv_intc::{GLOBAL_INTC, IRQ_TABLE};
-use crate::{irq, Driver, InterruptController, InterruptHandler};
+use crate::irq::riscv_intc::IRQ_TABLE;
+use crate::{Driver, InterruptController};
 use alloc::sync::Arc;
 use core::ops::Range;
-use fdt::node::{self, FdtNode, NodeProperty};
+use fdt::node::FdtNode;
 use jrinx_addr::{PhysAddr, VirtAddr};
 use jrinx_devprober::{devprober, ROOT_COMPATIBLE};
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal, Vm};
 use jrinx_paging::boot::BootPageTable;
-use jrinx_paging::{GenericPagePerm, GenericPageTable, PagePerm};
-use jrinx_phys_frame::PhysFrame;
-use jrinx_vmm::KERN_PAGE_TABLE;
 use log::info;
 use spin::{Mutex, Once};
 extern crate jrinx_config;
@@ -23,7 +19,7 @@ pub static PLIC_PHANDLE:Once<usize> = Once::new();
 
 const IRQ_RANGE: Range<usize> = 1..1024;
 const PLIC_PRIORITY_BASE: usize = 0x0;
-const PLIC_PENDING_BASE: usize = 0x1000;
+// const PLIC_PENDING_BASE: usize = 0x1000;
 const PLIC_ENABLE_BASE: usize = 0x2000;
 const PLIC_CONTEXT_BASE: usize = 0x20_0000;
 
@@ -32,7 +28,7 @@ const PLIC_CONTEXT_CLAIM: usize = 0x4 / core::mem::size_of::<u32>();
 
 const PLIC_ENABLE_CONTEXT_OFFSET: usize = 0x80 / core::mem::size_of::<u32>();
 const PLIC_CONTEXT_HART_OFFSET: usize = 0x1000 / core::mem::size_of::<u32>();
-#[devprober(compatible = "sifive,plic-1.0.0", compatible = "riscv,plic0")]
+#[devprober(compatible = "sifive,plic-1.0.0")]
 fn probe(node: &FdtNode) -> Result<()> {
     let region = node
         .reg()
@@ -47,7 +43,7 @@ fn probe(node: &FdtNode) -> Result<()> {
         .as_usize()
         .unwrap();
     let context_max_id = (size - 0x200000_usize) / 0x1000_usize - 1_usize;
-    let count = size / PAGE_SIZE;
+    let count = size / PAGE_SIZE ;
     unsafe {
         for i in 0..count {
             BootPageTable.map(
@@ -56,6 +52,7 @@ fn probe(node: &FdtNode) -> Result<()> {
             );
         }
     }
+    info!("addr is {:x} ,size is {:x}",addr,count);
     IRQ_TABLE
         .write()
         .insert(phandle, Arc::new(Mutex::new(Plic::new(addr, context_max_id))) as _);
@@ -112,7 +109,7 @@ impl PLICInner {
         for i in 0..5 {
             self.set_threshold(get_context_id(i), 0);
         }
-        info!("current cpu is {}",hal!().cpu().id());
+        // info!("current cpu is {}",hal!().cpu().id());
     }
     fn init(&mut self, context_max_id: usize) {
         for i in 0..=context_max_id {
@@ -146,7 +143,6 @@ impl PLICInner {
             .write(irq_num as _);
     }
     fn enable(&mut self, context_id: usize, irq_num: usize) {
-        info!("irq_num is {}",irq_num);
         debug_assert!(self.is_valid(irq_num));
         let content = self
             .enable_base
@@ -157,7 +153,6 @@ impl PLICInner {
             .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
             .write(1 << (irq_num % 32) | content);
-        info!("content is {:x}",content);
     }
     fn disable(&mut self, context_id: usize, irq_num: usize) {
         debug_assert!(self.is_valid(irq_num));
@@ -205,9 +200,9 @@ impl Plic {
             inner: Mutex::new(inner),
         }
     }
-    fn is_valid(&self, irq_num: usize) -> bool {
-        self.inner.lock().is_valid(irq_num)
-    }
+    // fn is_valid(&self, irq_num: usize) -> bool {
+    //     self.inner.lock().is_valid(irq_num)
+    // }
 }
 impl Driver for Plic {
     fn name(&self) -> &str {
@@ -217,7 +212,7 @@ impl Driver for Plic {
     fn handle_irq(&self, _: usize) {
         let mut inner = self.inner.lock();
         let irq_num = inner.get_current_cpu_claim().unwrap();
-        info!("current cpu claim is {}",irq_num);
+        //info!("current cpu claim is {}",irq_num);
         inner.irq_manager.handle_irq(irq_num);
         inner.end_of_interrupt(irq_num);
     }

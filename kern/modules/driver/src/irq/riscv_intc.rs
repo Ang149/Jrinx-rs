@@ -1,14 +1,13 @@
-use crate::{Driver, InterruptController, InterruptHandler};
+use crate::{Driver, InterruptController};
 use alloc::string::ToString;
-use alloc::{boxed::Box, collections::BTreeMap, string::String, sync::Arc, vec::Vec};
-use fdt::node::{self, FdtNode, NodeProperty};
+use alloc::{collections::BTreeMap, string::String, sync::Arc};
+use fdt::node::FdtNode;
 use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
 use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
-use super::irq_dispatch::single_cpu_strategy;
 //use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
 
