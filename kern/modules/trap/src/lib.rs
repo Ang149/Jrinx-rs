@@ -4,7 +4,7 @@
 
 #[macro_use]
 extern crate log;
-
+extern crate alloc;
 pub mod arch;
 pub mod breakpoint;
 pub mod soft_int;

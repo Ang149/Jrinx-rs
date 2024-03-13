@@ -593,11 +593,13 @@ dependencies = [
  "jrinx-layout",
  "jrinx-paging",
  "jrinx-phys-frame",
+ "jrinx-timed-event",
  "jrinx-util",
  "jrinx-vmm",
  "lazy_static",
  "log",
  "riscv",
+ "smoltcp",
  "spin 0.9.8",
  "virtio-drivers",
 ]

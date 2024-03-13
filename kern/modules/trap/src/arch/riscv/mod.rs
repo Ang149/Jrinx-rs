@@ -1,14 +1,17 @@
 mod entry;
 
+use core::time::Duration;
+
+use crate::{breakpoint, soft_int, timer_int, GenericContext, TrapReason};
+use alloc::vec::Vec;
 use jrinx_addr::VirtAddr;
+use jrinx_hal::{hal, Cpu, Hal};
 use jrinx_paging::{GenericPagePerm, PagePerm};
 use riscv::register::{
     scause::{Exception, Interrupt},
     sstatus::{FS, SPP},
     utvec::TrapMode,
 };
-
-use crate::{breakpoint, soft_int, timer_int, GenericContext, TrapReason};
 extern crate jrinx_driver;
 use jrinx_driver::irq::riscv_intc::GLOBAL_INTC;
 #[derive(Debug, Default, Clone, Copy)]
@@ -180,6 +183,7 @@ pub(crate) fn init() {
 
 extern "C" fn handle_kern_trap(ctx: &mut Context) {
     let reason = ctx.trap_reason();
+    let trap_start_time = hal!().cpu().get_time();
     //info!("reason is {:x?}", reason);
     match reason {
         TrapReason::Breakpoint { addr: _ } => breakpoint::handle(ctx),
@@ -187,6 +191,10 @@ extern "C" fn handle_kern_trap(ctx: &mut Context) {
         TrapReason::TimerInterrupt => timer_int::handle(ctx),
         _ => {
             GLOBAL_INTC.get().unwrap().handle_irq(0);
+            let trap_finished_time = hal!().cpu().get_time();
+            let process_time = trap_finished_time-trap_start_time;
+            info!("process time is {:?}, interrupt start time {:?}, finished time {:?}",process_time,trap_start_time, trap_finished_time);    
         }
     }
+
 }

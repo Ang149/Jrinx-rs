@@ -8,11 +8,13 @@ use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
+use super::irq_dispatch::{min_count_strategy, rotate_strategy};
 //use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
 
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
-pub static IRQ_TABLE:RwLock<BTreeMap<usize, Arc<Mutex<dyn InterruptController>>>> = RwLock::new(BTreeMap::new()) ;
+pub static IRQ_TABLE: RwLock<BTreeMap<usize, Arc<Mutex<dyn InterruptController>>>> =
+    RwLock::new(BTreeMap::new());
 #[devprober(compatible = "riscv,cpu-intc")]
 fn probe(node: &FdtNode) -> Result<()> {
     GLOBAL_INTC.call_once(|| Arc::new(Intc::new()));
@@ -27,8 +29,20 @@ impl Driver for Intc {
         &self.name
     }
     fn handle_irq(&self, irq_num: usize) {
-        IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().handle_irq(irq_num);
-        IRQ_TABLE.write().get(PLIC_PHANDLE.get().unwrap()).unwrap().lock().info();
+        IRQ_TABLE
+            .write()
+            .get(PLIC_PHANDLE.get().unwrap())
+            .unwrap()
+            .lock()
+            .handle_irq(irq_num);
+        //min_count_strategy();
+        //rotate_strategy();
+        IRQ_TABLE
+            .write()
+            .get(PLIC_PHANDLE.get().unwrap())
+            .unwrap()
+            .lock()
+            .info();
     }
 }
 impl InterruptController for Intc {
@@ -61,7 +75,6 @@ impl InterruptController for Intc {
         }
         Ok(())
     }
-
 }
 impl Intc {
     fn new() -> Self {

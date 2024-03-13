@@ -1,20 +1,13 @@
-
-
 use super::net_buf::NetBufPtr;
 use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
-use crate::{Driver, EthernetAddress,VirtioNet};
+use crate::{Driver, EthernetAddress, VirtioNet};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use jrinx_error::{InternalError, Result};
 use spin::mutex::Mutex;
-use virtio_drivers::{
-    device::net::VirtIONetRaw,
-    transport::
-        mmio::MmioTransport,
-
-};
+use virtio_drivers::{device::net::VirtIONetRaw, transport::mmio::MmioTransport};
 const NET_BUF_LEN: usize = 1526;
 //QS is virtio queue size
 const QS: usize = 64;
@@ -77,10 +70,13 @@ impl VirtIoNetInner {
 }
 
 impl VirtIoNetMutex {
-    pub fn new(net_dev: VirtIoNetInner) -> Self{
+    pub fn new(net_dev: VirtIoNetInner) -> Self {
         Self {
             inner: Mutex::new(net_dev),
         }
+    }
+    pub fn ack_interrupt(&self){
+        self.ack_interrupt();
     }
 }
 impl Driver for VirtIoNetMutex {
@@ -89,42 +85,40 @@ impl Driver for VirtIoNetMutex {
     }
 
     fn handle_irq(&self, _irq_num: usize) {
-        if let Err(e) = self.inner.lock().recycle_tx_buffers() {
-            warn!("recycle_tx_buffers failed: {:?}", e);
-        }
+        // if let Err(e) = self.inner.lock().recycle_tx_buffers() {
+        //     warn!("recycle_tx_buffers failed: {:?}", e);
+        // }
 
-        if !self.inner.lock().can_transmit() {
-            return;
-        }
-        let rx_buf = match self.inner.lock().receive() {
-            Ok(buf) => buf,
-            Err(err) => {
-                if !matches!(&err, InternalError) {
-                    warn!("receive failed: {:?}", err);
-                }
-                return ;
-            }
-        };
-        info!("packet bytes {:2x?}",rx_buf.packet());
-        self.inner.lock().raw.ack_interrupt();
+        // if !self.inner.lock().can_transmit() {
+        //     return;
+        // }
+        // let rx_buf = match self.inner.lock().receive() {
+        //     Ok(buf) => buf,
+        //     Err(err) => {
+        //         if !matches!(&err, InternalError) {
+        //             warn!("receive failed: {:?}", err);
+        //         }
+        //         return;
+        //     }
+        // };
+        // info!("packet bytes {:2x?}", rx_buf.packet());
+        // self.inner.lock().recycle_rx_buffer(rx_buf).unwrap();
+        //self.inner.lock().raw.ack_interrupt();
+        info!("net driver handler");
     }
 }
 impl VirtioNet for VirtIoNetInner {
-
     fn mac_address(&self) -> EthernetAddress {
         EthernetAddress(self.raw.mac_address())
     }
-
 
     fn can_transmit(&self) -> bool {
         !self.free_tx_bufs.is_empty() && self.raw.can_send()
     }
 
-
     fn can_receive(&self) -> bool {
         self.raw.poll_receive().is_some()
     }
-
 
     fn rx_queue_size(&self) -> usize {
         QS

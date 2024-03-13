@@ -54,7 +54,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
-    jrinx_driver::irq::irq_dispatch::single_cpu_strategy();
+    jrinx_driver::irq::irq_dispatch::init_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -103,6 +103,7 @@ async fn primary_task() {
         core::hint::spin_loop();
     }
     jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
+    jrinx_net::net_test();
     loop {}
     bootargs::execute().await;
 }

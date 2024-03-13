@@ -29,6 +29,10 @@ impl IrqManager {
             if let Some(dev) = self.table.get(&irq_num) {
                 dev.as_ref().unwrap().handle_irq(irq_num);
             }
+            else
+            {
+                info!("handle error");
+            }
         }
     }
     pub fn contains(&self, irq_num: usize) -> bool {

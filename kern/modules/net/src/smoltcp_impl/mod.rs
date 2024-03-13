@@ -167,6 +167,9 @@ impl DeviceWrapper {
             inner: RefCell::new(inner),
         }
     }
+    fn ack(&mut self) {
+        self.inner.get_mut().ack_interrupt();
+    }
 }
 
 impl Device for DeviceWrapper {
@@ -317,25 +320,4 @@ pub(crate) fn init(net_dev: Arc<VirtIoNetMutex>) {
     info!("  ether:    {}", ETH0.get().unwrap().ethernet_address());
     info!("  ip:       {}/{}", ip, IP_PREFIX);
     info!("  gateway:  {}", gateway);
-
-    //net_test();
-}
-
-const LOCAL_PORT: u16 = 5555;
-const CONTENT: &str = "hello jrinx";
-
-pub fn net_test() {
-    let tcp_socket = TcpSocket::new();
-    tcp_socket
-        .bind(SocketAddr::new(
-            core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            LOCAL_PORT,
-        ))
-        .unwrap();
-    tcp_socket.listen().unwrap();
-    info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
-    let new_socket = tcp_socket.accept().unwrap();
-    let addr = new_socket.peer_addr().unwrap();
-    info!("addr is {}", addr);
-    new_socket.send(CONTENT.as_bytes()).unwrap();
 }

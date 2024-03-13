@@ -15,7 +15,7 @@ use spin::{Mutex, Once};
 extern crate jrinx_config;
 use jrinx_config::{EXTERNAL_DEVICE_REGION, PAGE_SIZE};
 
-pub static PLIC_PHANDLE:Once<usize> = Once::new();
+pub static PLIC_PHANDLE: Once<usize> = Once::new();
 
 const IRQ_RANGE: Range<usize> = 1..1024;
 const PLIC_PRIORITY_BASE: usize = 0x0;
@@ -43,7 +43,7 @@ fn probe(node: &FdtNode) -> Result<()> {
         .as_usize()
         .unwrap();
     let context_max_id = (size - 0x200000_usize) / 0x1000_usize - 1_usize;
-    let count = size / PAGE_SIZE ;
+    let count = size / PAGE_SIZE;
     unsafe {
         for i in 0..count {
             BootPageTable.map(
@@ -52,10 +52,11 @@ fn probe(node: &FdtNode) -> Result<()> {
             );
         }
     }
-    info!("addr is {:x} ,size is {:x}",addr,count);
-    IRQ_TABLE
-        .write()
-        .insert(phandle, Arc::new(Mutex::new(Plic::new(addr, context_max_id))) as _);
+    info!("addr is {:x} ,size is {:x}", addr, count);
+    IRQ_TABLE.write().insert(
+        phandle,
+        Arc::new(Mutex::new(Plic::new(addr, context_max_id))) as _,
+    );
     PLIC_PHANDLE.call_once(|| phandle);
     hal!().vm().sync_all();
     Ok(())
@@ -92,20 +93,50 @@ fn get_context_id(cpu_id: usize) -> usize {
         }
         _ => panic!("unknown root compatible"),
     }
-}    
+}
 impl PLICInner {
-    fn info(&mut self){
-        info!("cpu enable bit is {} {} {} {} {}",self.enable_base.add(get_context_id(0) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
-        self.enable_base.add(get_context_id(1) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
-        self.enable_base.add(get_context_id(2) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
-        self.enable_base.add(get_context_id(3) * PLIC_ENABLE_CONTEXT_OFFSET).read(),
-        self.enable_base.add(get_context_id(4) * PLIC_ENABLE_CONTEXT_OFFSET).read()
-            );
-        info!("cpu threshold is {} {} {} {} {}",self.context_base.add(get_context_id(0) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
-        self.context_base.add(get_context_id(1) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
-        self.context_base.add(get_context_id(2) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
-        self.context_base.add(get_context_id(3) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read(),
-        self.context_base.add(get_context_id(4) * PLIC_CONTEXT_HART_OFFSET).add(PLIC_CONTEXT_THRESHOLD).read());
+    fn info(&mut self) {
+        info!(
+            "cpu enable bit is {} {} {} {} {}",
+            self.enable_base
+                .add(get_context_id(0) * PLIC_ENABLE_CONTEXT_OFFSET)
+                .read(),
+            self.enable_base
+                .add(get_context_id(1) * PLIC_ENABLE_CONTEXT_OFFSET)
+                .read(),
+            self.enable_base
+                .add(get_context_id(2) * PLIC_ENABLE_CONTEXT_OFFSET)
+                .read(),
+            self.enable_base
+                .add(get_context_id(3) * PLIC_ENABLE_CONTEXT_OFFSET)
+                .read(),
+            self.enable_base
+                .add(get_context_id(4) * PLIC_ENABLE_CONTEXT_OFFSET)
+                .read()
+        );
+        info!(
+            "cpu threshold is {} {} {} {} {}",
+            self.context_base
+                .add(get_context_id(0) * PLIC_CONTEXT_HART_OFFSET)
+                .add(PLIC_CONTEXT_THRESHOLD)
+                .read(),
+            self.context_base
+                .add(get_context_id(1) * PLIC_CONTEXT_HART_OFFSET)
+                .add(PLIC_CONTEXT_THRESHOLD)
+                .read(),
+            self.context_base
+                .add(get_context_id(2) * PLIC_CONTEXT_HART_OFFSET)
+                .add(PLIC_CONTEXT_THRESHOLD)
+                .read(),
+            self.context_base
+                .add(get_context_id(3) * PLIC_CONTEXT_HART_OFFSET)
+                .add(PLIC_CONTEXT_THRESHOLD)
+                .read(),
+            self.context_base
+                .add(get_context_id(4) * PLIC_CONTEXT_HART_OFFSET)
+                .add(PLIC_CONTEXT_THRESHOLD)
+                .read()
+        );
         for i in 0..5 {
             self.set_threshold(get_context_id(i), 0);
         }
@@ -122,12 +153,12 @@ impl PLICInner {
     }
     fn get_current_cpu_claim(&mut self) -> Option<usize> {
         let context_id = get_current_context_id();
-        info!("current cpu is {}",hal!().cpu().id());
         let irq_num = self
             .context_base
             .add(context_id * PLIC_CONTEXT_HART_OFFSET)
             .add(PLIC_CONTEXT_CLAIM)
             .read() as usize;
+        info!("claim is {}", irq_num);
         if irq_num == 0 {
             None
         } else {
@@ -164,7 +195,7 @@ impl PLICInner {
         self.enable_base
             .add(context_id * PLIC_ENABLE_CONTEXT_OFFSET)
             .add(irq_num / 32)
-            .write(0 << (irq_num % 32) | content);
+            .write(!(1 << (irq_num % 32)) & content);
     }
     fn disable_all(&mut self, context_id: usize) {
         for i in 0..128 {
@@ -218,7 +249,7 @@ impl Driver for Plic {
     }
 }
 impl InterruptController for Plic {
-    fn info(&self){
+    fn info(&self) {
         self.inner.lock().info();
     }
     fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {

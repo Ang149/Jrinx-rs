@@ -9,7 +9,7 @@ use jrinx_addr::{PhysAddr, VirtAddr};
 use jrinx_config::EXTERNAL_DEVICE_REGION;
 use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
-use jrinx_hal::{hal, Hal, Vm};
+use jrinx_hal::{hal, Cpu, Hal, Vm};
 use jrinx_paging::boot::BootPageTable;
 use spin::Mutex;
 
@@ -146,8 +146,8 @@ impl Driver for NS16550a {
     }
     fn handle_irq(&self, _irq_num: usize) {
         while let Some(ch) = self.inner.lock().read() {
-            info!("ns16550a handle irq and read {}", ch as char);
             self.buffer.lock().push_back(ch);
+            info!("ns16550a handle irq and read {}", ch as char);
         }
     }
 }
