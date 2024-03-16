@@ -19,7 +19,7 @@ use crate::{
     net::virtio_net::{VirtIoNetInner, VirtIoNetMutex},
 };
 
-#[devprober(compatible = "virtio,mmio")]
+//#[devprober(compatible = "virtio,mmio")]
 fn probe(node: &FdtNode) -> Result<()> {
     let region = node
         .reg()

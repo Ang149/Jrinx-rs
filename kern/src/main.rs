@@ -3,9 +3,11 @@
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(used_with_arg)]
-// #![deny(warnings)]
+//#![deny(warnings)]
 #![no_std]
 #![no_main]
+
+use core::time;
 
 use arch::BootInfo;
 use jrinx_driver::net::virtio::VIRTIO_DEVICE;
@@ -55,6 +57,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
 
     jrinx_driver::probe_all(fdt);
     jrinx_driver::irq::irq_dispatch::init_strategy();
+    jrinx_driver::irq::irq_dispatch::min_count_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -102,13 +105,33 @@ async fn primary_task() {
         }
         core::hint::spin_loop();
     }
-    jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
-    jrinx_net::net_test();
-    loop {}
-    bootargs::execute().await;
-}
 
+    //jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
+    //jrinx_net::net_test();
+    bootargs::execute().await;
+    time_test();
+    loop {}
+}
+pub fn time_test() {
+    let start_time = hal!().cpu().get_time();
+    let n = 100000000;
+    let mut pi_estimate = 0.0;
+    let mut sign = 1.0;
+    for i in 0..n {
+        pi_estimate += sign / (2.0 * i as f64 + 1.0);
+        sign = -sign;
+    }
+    pi_estimate *= 4.0;
+    let end_time = hal!().cpu().get_time();
+    info!(
+        "process hash {}times,the cost is {:?}, the result is {:?}",
+        n,
+        end_time - start_time,
+        pi_estimate
+    );
+}
 async fn secondary_task() {
     info!("secondary task started");
+    time_test();
     loop {}
 }

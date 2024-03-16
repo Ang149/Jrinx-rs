@@ -158,7 +158,7 @@ impl PLICInner {
             .add(context_id * PLIC_CONTEXT_HART_OFFSET)
             .add(PLIC_CONTEXT_CLAIM)
             .read() as usize;
-        info!("claim is {}", irq_num);
+        //info!("claim is {}", irq_num);
         if irq_num == 0 {
             None
         } else {

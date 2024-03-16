@@ -1,15 +1,16 @@
+use crate::irq::irq_dispatch::INTERRUPT_COUNT;
 use crate::{Driver, InterruptController};
 use alloc::string::ToString;
 use alloc::{collections::BTreeMap, string::String, sync::Arc};
 use fdt::node::FdtNode;
 use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
+use jrinx_hal::{hal, Cpu, Hal};
 use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
 use super::irq_dispatch::{min_count_strategy, rotate_strategy};
-//use super::irq_dispatch::{min_count_cpu_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
 
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
@@ -22,7 +23,6 @@ fn probe(node: &FdtNode) -> Result<()> {
 }
 pub struct Intc {
     name: String,
-    // handler_table: RwLock<BTreeMap<usize, InterruptHandler>>,
 }
 impl Driver for Intc {
     fn name(&self) -> &str {
@@ -35,14 +35,19 @@ impl Driver for Intc {
             .unwrap()
             .lock()
             .handle_irq(irq_num);
-        //min_count_strategy();
+        let cpu_id = hal!().cpu().id();
+        unsafe {
+            unsafe {
+                INTERRUPT_COUNT[cpu_id] = INTERRUPT_COUNT[cpu_id] + 1;
+            }
+        }
         //rotate_strategy();
-        IRQ_TABLE
-            .write()
-            .get(PLIC_PHANDLE.get().unwrap())
-            .unwrap()
-            .lock()
-            .info();
+        // IRQ_TABLE
+        //     .write()
+        //     .get(PLIC_PHANDLE.get().unwrap())
+        //     .unwrap()
+        //     .lock()
+        //     .info();
     }
 }
 impl InterruptController for Intc {

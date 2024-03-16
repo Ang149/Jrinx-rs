@@ -147,7 +147,7 @@ impl Driver for NS16550a {
     fn handle_irq(&self, _irq_num: usize) {
         while let Some(ch) = self.inner.lock().read() {
             self.buffer.lock().push_back(ch);
-            info!("ns16550a handle irq and read {}", ch as char);
+            //info!("ns16550a handle irq and read {}", ch as char);
         }
     }
 }
