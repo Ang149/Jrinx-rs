@@ -4,6 +4,7 @@ use crate::irq::riscv_intc::IRQ_TABLE;
 use crate::{Driver, InterruptController};
 use alloc::sync::Arc;
 use core::ops::Range;
+use core::time::Duration;
 use fdt::node::FdtNode;
 use jrinx_addr::{PhysAddr, VirtAddr};
 use jrinx_devprober::{devprober, ROOT_COMPATIBLE};
@@ -97,7 +98,7 @@ fn get_context_id(cpu_id: usize) -> usize {
 impl PLICInner {
     fn info(&mut self) {
         info!(
-            "cpu enable bit is {} {} {} {} {}",
+            "cpu enable bit is {:b} {:b} {:b} {:b} {:b}",
             self.enable_base
                 .add(get_context_id(0) * PLIC_ENABLE_CONTEXT_OFFSET)
                 .read(),
@@ -137,9 +138,6 @@ impl PLICInner {
                 .add(PLIC_CONTEXT_THRESHOLD)
                 .read()
         );
-        for i in 0..5 {
-            self.set_threshold(get_context_id(i), 0);
-        }
         // info!("current cpu is {}",hal!().cpu().id());
     }
     fn init(&mut self, context_max_id: usize) {
@@ -231,21 +229,19 @@ impl Plic {
             inner: Mutex::new(inner),
         }
     }
-    // fn is_valid(&self, irq_num: usize) -> bool {
-    //     self.inner.lock().is_valid(irq_num)
-    // }
 }
 impl Driver for Plic {
     fn name(&self) -> &str {
         "riscv_plic"
     }
 
-    fn handle_irq(&self, _: usize) {
+    fn handle_irq(&self, _: usize) -> Duration {
         let mut inner = self.inner.lock();
         let irq_num = inner.get_current_cpu_claim().unwrap();
         //info!("current cpu claim is {}",irq_num);
-        inner.irq_manager.handle_irq(irq_num);
+        let start_time = inner.irq_manager.handle_irq(irq_num);
         inner.end_of_interrupt(irq_num);
+        start_time
     }
 }
 impl InterruptController for Plic {
@@ -256,6 +252,7 @@ impl InterruptController for Plic {
         let mut inner = self.inner.lock();
         let context_id = get_context_id(cpu_id);
         inner.enable(context_id, irq_num);
+        inner.set_threshold(context_id, 0);
         Ok(())
     }
 

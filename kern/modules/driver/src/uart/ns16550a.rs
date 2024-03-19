@@ -49,7 +49,7 @@ fn probe(node: &FdtNode) -> Result<()> {
         .lock()
         .register_device(irq_num, Arc::new(NS16550a::new(vaddr)))
         .unwrap();
-    info!("ns16550a vaddr {:x}, size {:x}",vaddr,size);
+    info!("ns16550a vaddr {:x}, size {:x}", vaddr, size);
     Ok(())
 }
 bitflags! {
@@ -140,14 +140,29 @@ impl NS16550a {
         self.inner.lock().read()
     }
 }
+use core::hint::black_box;
+use core::time::Duration;
 impl Driver for NS16550a {
     fn name(&self) -> &str {
         "ns16550a"
     }
-    fn handle_irq(&self, _irq_num: usize) {
-        while let Some(ch) = self.inner.lock().read() {
+    fn handle_irq(&self, _irq_num: usize)->Duration {
+        let start_time = hal!().cpu().get_time();
+        if let Some(ch) = self.inner.lock().read() {
             self.buffer.lock().push_back(ch);
-            //info!("ns16550a handle irq and read {}", ch as char);
+            //let result = black_box(pi(black_box(10000)));
+            //info!("ns16550a handle irq and read {:?}", ch);
         }
+        start_time
     }
+}
+fn pi(n: i64) -> f64 {
+    let mut pi_estimate = 0.0;
+    let mut sign = 1.0;
+    for i in 0..n {
+        pi_estimate += sign / (2.0 * i as f64 + 1.0);
+        sign = -sign;
+    }
+    pi_estimate *= 4.0;
+    pi_estimate
 }

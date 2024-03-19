@@ -18,6 +18,7 @@ jrinx-phys-frame = { version = "0.1.0", path = "../phys-frame" }
 jrinx-timed-event = { version = "0.1.0", path = "../timed-event" }
 jrinx-util = { version = "0.1.0", path = "../util" }
 jrinx-vmm = { version = "0.1.0", path = "../vmm" }
+jrinx-multitask = {version = "0.1.0",path = "../multitask"}
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 log = { version = "0.4.20", default-features = false }
 spin = "0.9.8"

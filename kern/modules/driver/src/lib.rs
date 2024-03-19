@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(used_with_arg)]
 #![feature(allocator_api)]
+#![feature(new_uninit)]
 extern crate alloc;
 
 #[macro_use]
@@ -12,12 +13,15 @@ pub mod irq;
 mod mem;
 pub mod net;
 pub mod uart;
+pub mod smoltcp_impl;
 
+use core::time::Duration;
 
 use alloc::{boxed::Box, sync::Arc};
 use fdt::Fdt;
 use jrinx_error::Result;
 use net::net_buf::NetBufPtr;
+use smoltcp::wire::EthernetAddress;
 
 pub fn probe_all(fdt: &Fdt<'_>) {
     info!("probing all devices");
@@ -29,7 +33,7 @@ pub type InterruptHandler = Box<dyn Fn() + Send + Sync>;
 pub trait Driver: Send + Sync {
     fn name(&self) -> &str;
 
-    fn handle_irq(&self, irq_num: usize);
+    fn handle_irq(&self, irq_num: usize)->Duration;
 }
 
 pub trait InterruptController: Driver {
@@ -45,7 +49,6 @@ pub trait Uart: Driver {
     fn write(&self, data: u8) -> Result<()>;
     fn write_str(&self, data: &str) -> Result<()>;
 }
-pub struct EthernetAddress(pub [u8; 6]);
 pub trait VirtioNet {
     /// The ethernet address of the NIC.
     fn mac_address(&self) -> EthernetAddress;

@@ -7,12 +7,17 @@
 #![no_std]
 #![no_main]
 
-use core::time;
+use core::{
+    net::{Ipv4Addr, SocketAddr},
+    time,
+};
 
 use arch::BootInfo;
-use jrinx_driver::net::virtio::VIRTIO_DEVICE;
-use jrinx_hal::{Cpu, Hal};
-use jrinx_multitask::runtime::{self, Runtime};
+use jrinx_hal::{cpu, Cpu, Hal};
+use jrinx_multitask::{
+    runtime::{self, Runtime},
+    spawn, yield_now,
+};
 use spin::Mutex;
 
 extern crate alloc;
@@ -56,8 +61,6 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
-    jrinx_driver::irq::irq_dispatch::init_strategy();
-    jrinx_driver::irq::irq_dispatch::min_count_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -74,7 +77,9 @@ fn primary_init(boot_info: BootInfo) -> ! {
 
     jrinx_vmm::init();
     runtime::init(primary_task());
-
+    jrinx_driver::irq::irq_dispatch::init_strategy();
+    jrinx_driver::irq::irq_dispatch::min_count_strategy();
+    //jrinx_driver::irq::irq_dispatch::tmp();
     boot_set_ready();
 
     Runtime::start();
@@ -108,8 +113,21 @@ async fn primary_task() {
 
     //jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
     //jrinx_net::net_test();
+    // const LOCAL_PORT: u16 = 5555;
+    // let tcp_socket = TcpSocket::new();
+    // tcp_socket
+    //     .bind(SocketAddr::new(
+    //         core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+    //         LOCAL_PORT,
+    //     ))
+    //     .unwrap();
+    // tcp_socket.listen().unwrap();
+    // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
+    // info!("create {:?}", tcp_socket.local_addr());
+    // spawn!(async { time_test() });
+    // yield_now!();
+
     bootargs::execute().await;
-    time_test();
     loop {}
 }
 pub fn time_test() {
@@ -124,7 +142,7 @@ pub fn time_test() {
     pi_estimate *= 4.0;
     let end_time = hal!().cpu().get_time();
     info!(
-        "process hash {}times,the cost is {:?}, the result is {:?}",
+        "perform {} times,take {:?}, the result is {:?}",
         n,
         end_time - start_time,
         pi_estimate
@@ -132,6 +150,8 @@ pub fn time_test() {
 }
 async fn secondary_task() {
     info!("secondary task started");
-    time_test();
+    // spawn!(async { time_test() });
+    // yield_now!();
+
     loop {}
 }

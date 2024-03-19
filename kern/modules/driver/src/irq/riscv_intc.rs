@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use crate::irq::irq_dispatch::INTERRUPT_COUNT;
 use crate::{Driver, InterruptController};
 use alloc::string::ToString;
@@ -12,7 +14,6 @@ use spin::{Mutex, Once, RwLock};
 
 use super::irq_dispatch::{min_count_strategy, rotate_strategy};
 use super::riscv_plic::PLIC_PHANDLE;
-
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
 pub static IRQ_TABLE: RwLock<BTreeMap<usize, Arc<Mutex<dyn InterruptController>>>> =
     RwLock::new(BTreeMap::new());
@@ -28,19 +29,21 @@ impl Driver for Intc {
     fn name(&self) -> &str {
         &self.name
     }
-    fn handle_irq(&self, irq_num: usize) {
-        IRQ_TABLE
+    fn handle_irq(&self, irq_num: usize) -> Duration {
+        let start_time = IRQ_TABLE
             .write()
             .get(PLIC_PHANDLE.get().unwrap())
             .unwrap()
             .lock()
             .handle_irq(irq_num);
         let cpu_id = hal!().cpu().id();
-        unsafe {
-            unsafe {
-                INTERRUPT_COUNT[cpu_id] = INTERRUPT_COUNT[cpu_id] + 1;
-            }
-        }
+        *INTERRUPT_COUNT
+            .get()
+            .unwrap()
+            .lock()
+            .get_mut(cpu_id)
+            .unwrap() += 1;
+
         //rotate_strategy();
         // IRQ_TABLE
         //     .write()
@@ -48,6 +51,7 @@ impl Driver for Intc {
         //     .unwrap()
         //     .lock()
         //     .info();
+        start_time
     }
 }
 impl InterruptController for Intc {
