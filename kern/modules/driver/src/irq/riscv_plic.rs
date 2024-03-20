@@ -237,11 +237,18 @@ impl Driver for Plic {
 
     fn handle_irq(&self, _: usize) -> Duration {
         let mut inner = self.inner.lock();
-        let irq_num = inner.get_current_cpu_claim().unwrap();
+        match inner.get_current_cpu_claim() {
+            Some(irq_num) => {
+                let start_time = inner.irq_manager.handle_irq(irq_num);
+                inner.end_of_interrupt(irq_num);
+                start_time
+            }
+            _ => {
+                warn!("plic claim error");
+                return Duration::new(0, 0);
+            }
+        }
         //info!("current cpu claim is {}",irq_num);
-        let start_time = inner.irq_manager.handle_irq(irq_num);
-        inner.end_of_interrupt(irq_num);
-        start_time
     }
 }
 impl InterruptController for Plic {

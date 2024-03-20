@@ -48,7 +48,11 @@ impl From<TaskPriority> for FastPriority {
         value.0
     }
 }
-
+impl From<TaskPriority> for u8 {
+    fn from(val: TaskPriority) -> Self {
+        val.0.into()
+    }
+}
 impl From<u8> for TaskPriority {
     fn from(value: u8) -> Self {
         Self::new(value)

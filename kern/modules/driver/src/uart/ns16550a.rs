@@ -146,12 +146,12 @@ impl Driver for NS16550a {
     fn name(&self) -> &str {
         "ns16550a"
     }
-    fn handle_irq(&self, _irq_num: usize)->Duration {
+    fn handle_irq(&self, _irq_num: usize) -> Duration {
         let start_time = hal!().cpu().get_time();
         if let Some(ch) = self.inner.lock().read() {
             self.buffer.lock().push_back(ch);
-            //let result = black_box(pi(black_box(10000)));
-            //info!("ns16550a handle irq and read {:?}", ch);
+            //black_box(pi(black_box(10000)));
+            //info!("ns16550a handle irq and read {:?}", ch as char);
         }
         start_time
     }

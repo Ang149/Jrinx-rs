@@ -120,7 +120,7 @@ impl Inspector {
         })
     }
 
-    pub(crate) fn with_executor<F, R>(&self, id: ExecutorId, f: F) -> Result<R>
+    pub fn with_executor<F, R>(&self, id: ExecutorId, f: F) -> Result<R>
     where
         F: FnOnce(&mut Pin<Box<Executor>>) -> R,
     {

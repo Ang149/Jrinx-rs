@@ -14,6 +14,11 @@ impl FastPriority {
         Self(priority)
     }
 }
+impl From<FastPriority> for u8 {
+    fn from(val: FastPriority) -> Self {
+        val.0
+    }
+}
 
 pub struct FastPriorityQueue<P: Clone + Copy + Into<FastPriority>, I> {
     bits: u64,

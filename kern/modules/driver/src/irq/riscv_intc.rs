@@ -12,13 +12,13 @@ use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
-use super::irq_dispatch::{min_count_strategy, rotate_strategy};
+//use super::irq_dispatch:: rotate_strategy;
 use super::riscv_plic::PLIC_PHANDLE;
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
 pub static IRQ_TABLE: RwLock<BTreeMap<usize, Arc<Mutex<dyn InterruptController>>>> =
     RwLock::new(BTreeMap::new());
 #[devprober(compatible = "riscv,cpu-intc")]
-fn probe(node: &FdtNode) -> Result<()> {
+fn probe(_node: &FdtNode) -> Result<()> {
     GLOBAL_INTC.call_once(|| Arc::new(Intc::new()));
     Ok(())
 }
@@ -58,11 +58,11 @@ impl InterruptController for Intc {
     fn info(&self) {
         todo!()
     }
-    fn register_device(&self, irq_num: usize, dev: Arc<dyn Driver>) -> Result<()> {
+    fn register_device(&self, _irq_num: usize, _dev: Arc<dyn Driver>) -> Result<()> {
         todo!()
     }
 
-    fn enable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
+    fn enable(&mut self, _cpu_id: usize, irq_num: usize) -> Result<()> {
         unsafe {
             match Interrupt::from(irq_num) {
                 Interrupt::SupervisorSoft => sie::set_ssoft(),
@@ -73,7 +73,7 @@ impl InterruptController for Intc {
         }
         Ok(())
     }
-    fn disable(&mut self, cpu_id: usize, irq_num: usize) -> Result<()> {
+    fn disable(&mut self, _cpu_id: usize, irq_num: usize) -> Result<()> {
         unsafe {
             match Interrupt::from(irq_num) {
                 Interrupt::SupervisorSoft => sie::clear_ssoft(),

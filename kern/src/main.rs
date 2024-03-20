@@ -12,11 +12,15 @@ use core::{
     time,
 };
 
+use alloc::{borrow::ToOwned, collections::BTreeMap};
 use arch::BootInfo;
+use jrinx_driver::smoltcp_impl::tcp::TcpSocket;
 use jrinx_hal::{cpu, Cpu, Hal};
 use jrinx_multitask::{
+    executor::{Executor, ExecutorId},
+    inspector::Inspector,
     runtime::{self, Runtime},
-    spawn, yield_now,
+    spawn, yield_now, TaskPriority,
 };
 use spin::Mutex;
 
@@ -61,6 +65,7 @@ fn primary_init(boot_info: BootInfo) -> ! {
     jrinx_percpu::set_local_pointer(hal!().cpu().id());
 
     jrinx_driver::probe_all(fdt);
+    jrinx_driver::irq::irq_dispatch::init_strategy();
     if let Some(bootargs) = fdt.chosen().bootargs() {
         bootargs::set(bootargs);
     }
@@ -77,9 +82,6 @@ fn primary_init(boot_info: BootInfo) -> ! {
 
     jrinx_vmm::init();
     runtime::init(primary_task());
-    jrinx_driver::irq::irq_dispatch::init_strategy();
-    jrinx_driver::irq::irq_dispatch::min_count_strategy();
-    //jrinx_driver::irq::irq_dispatch::tmp();
     boot_set_ready();
 
     Runtime::start();
@@ -103,7 +105,6 @@ fn secondary_init() -> ! {
 
 async fn primary_task() {
     info!("primary task started");
-
     while let BootState::Ready(count) = *BOOT_STATE.lock() {
         if count == hal!().cpu().nproc_valid() {
             break;
@@ -111,9 +112,7 @@ async fn primary_task() {
         core::hint::spin_loop();
     }
 
-    //jrinx_net::init_network(VIRTIO_DEVICE.get().unwrap().clone());
-    //jrinx_net::net_test();
-    // const LOCAL_PORT: u16 = 5555;
+    //const LOCAL_PORT: u16 = 5555;
     // let tcp_socket = TcpSocket::new();
     // tcp_socket
     //     .bind(SocketAddr::new(
@@ -124,15 +123,15 @@ async fn primary_task() {
     // tcp_socket.listen().unwrap();
     // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
     // info!("create {:?}", tcp_socket.local_addr());
-    // spawn!(async { time_test() });
-    // yield_now!();
+    spawn!(pri := TaskPriority::new(10)=>async { time_test() });
+    yield_now!();
 
     bootargs::execute().await;
     loop {}
 }
 pub fn time_test() {
     let start_time = hal!().cpu().get_time();
-    let n = 100000000;
+    let n = 10000000;
     let mut pi_estimate = 0.0;
     let mut sign = 1.0;
     for i in 0..n {
@@ -150,8 +149,12 @@ pub fn time_test() {
 }
 async fn secondary_task() {
     info!("secondary task started");
-    // spawn!(async { time_test() });
-    // yield_now!();
+    let cpu_id = hal!().cpu().id() as u8;
+    if cpu_id == 2 {
+        jrinx_driver::irq::irq_dispatch::min_count_strategy();
+        //     spawn!(pri := TaskPriority::new(cpu_id + 10)=>async { time_test() });
+        //     yield_now!();
+    }
 
     loop {}
 }

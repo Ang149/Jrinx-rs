@@ -85,6 +85,7 @@ pub struct Executor {
     task_registry: BTreeMap<TaskId, Task>,
     task_queue: Arc<TaskQueue>,
     task_waker: BTreeMap<TaskId, Waker>,
+    current_task_priority: TaskPriority,
 }
 
 impl Executor {
@@ -105,6 +106,7 @@ impl Executor {
             task_registry: BTreeMap::new(),
             task_queue: Arc::new(TaskQueue::new()),
             task_waker: BTreeMap::new(),
+            current_task_priority:TaskPriority::default(),
         });
 
         let executor_addr = &*executor as *const _ as usize;
@@ -125,7 +127,9 @@ impl Executor {
     pub fn priority(&self) -> ExecutorPriority {
         self.priority
     }
-
+    pub fn current_task_priority(&self) -> TaskPriority{
+        self.current_task_priority
+    }
     pub fn status(&self) -> ExecutorStatus {
         self.status
     }
@@ -177,6 +181,7 @@ impl Executor {
                 .or_insert_with(|| TaskWaker::create(task.id, task.priority, task_queue.clone()));
 
             let mut context = Context::from_waker(waker);
+            self.current_task_priority = task.priority;
             match task.poll(&mut context) {
                 Poll::Ready(()) => {
                     task_registry.remove(&task_id);

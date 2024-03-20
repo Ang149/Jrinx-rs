@@ -167,9 +167,6 @@ impl DeviceWrapper {
             inner: RefCell::new(inner),
         }
     }
-    fn ack(&mut self) {
-        self.inner.get_mut().ack_interrupt();
-    }
 }
 
 impl Device for DeviceWrapper {

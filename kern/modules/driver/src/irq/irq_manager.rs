@@ -19,11 +19,11 @@ impl IrqManager {
         }
     }
 
-    pub fn unregister_handler(&mut self, irq_num: usize) {
-        if self.irq_range.contains(&irq_num) && irq_num != 0 {
-            self.table.remove(&irq_num);
-        }
-    }
+    // pub fn unregister_handler(&mut self, irq_num: usize) {
+    //     if self.irq_range.contains(&irq_num) && irq_num != 0 {
+    //         self.table.remove(&irq_num);
+    //     }
+    // }
     pub fn handle_irq(&self, irq_num: usize)->Duration {
         let mut start_time = Duration::new(0, 0);
         if self.irq_range.contains(&irq_num) && irq_num != 0 {
@@ -37,7 +37,7 @@ impl IrqManager {
         }
         start_time
     }
-    pub fn contains(&self, irq_num: usize) -> bool {
-        self.table.get(&irq_num).is_some()
-    }
+    // pub fn contains(&self, irq_num: usize) -> bool {
+    //     self.table.get(&irq_num).is_some()
+    // }
 }

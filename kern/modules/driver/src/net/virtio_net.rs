@@ -1,5 +1,3 @@
-
-use core::time::Duration;
 use super::net_buf::NetBufPtr;
 use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
@@ -10,13 +8,12 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::time::Duration;
 use jrinx_error::{InternalError, Result};
-use jrinx_hal::{hal, Hal,Cpu,cpu};
+use jrinx_hal::{hal, Cpu, Hal};
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp;
-use smoltcp::wire::{
-    ArpOperation, ArpPacket, ArpRepr, EthernetFrame, HardwareAddress, IpAddress, IpEndpoint,
-};
+use smoltcp::wire::IpEndpoint;
 use spin::mutex::Mutex;
 use spin::Once;
 use virtio_drivers::{device::net::VirtIONetRaw, transport::mmio::MmioTransport};
@@ -87,11 +84,7 @@ impl VirtIoNetMutex {
             inner: Mutex::new(net_dev),
         }
     }
-    pub fn ack_interrupt(&self) {
-        self.ack_interrupt();
-    }
 }
-use crate::net::virtio::tcp_once;
 const LOCAL_PORT: u16 = 5555;
 const CONTENT: &str = r#"<html>
 <head>
@@ -119,12 +112,11 @@ Connection: close\r\n\
 {}"
     };
 }
-pub(crate) static socket_once: Once<Mutex<TcpSocket>> = Once::new();
 impl Driver for VirtIoNetMutex {
     fn name(&self) -> &str {
         "virtio-net"
     }
-    fn handle_irq(&self, _irq_num: usize)->Duration {
+    fn handle_irq(&self, _irq_num: usize) -> Duration {
         let start_time = hal!().cpu().get_time();
         SOCKET_SET.get().unwrap().poll_interfaces();
         let result: Result<(SocketHandle, (IpEndpoint, IpEndpoint))> =
@@ -172,6 +164,7 @@ impl Driver for VirtIoNetMutex {
         }
         //info!("local port {}", tcp_once.get().unwrap().0.get_state());
         info!("net driver handler");
+        self.inner.lock().raw.ack_interrupt();
         start_time
     }
 }

@@ -2,7 +2,7 @@ use alloc::{boxed::Box, collections::VecDeque};
 use core::matches;
 use core::ops::{Deref, DerefMut};
 use jrinx_error::{InternalError, Result};
-use log::{debug, info, warn};
+use log::{info, warn};
 use smoltcp::iface::{SocketHandle, SocketSet};
 use smoltcp::socket::tcp::{self, State};
 use smoltcp::wire::{IpAddress, IpEndpoint, IpListenEndpoint};
