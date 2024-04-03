@@ -150,7 +150,9 @@ impl Driver for NS16550a {
         let start_time = hal!().cpu().get_time();
         if let Some(ch) = self.inner.lock().read() {
             self.buffer.lock().push_back(ch);
-            //black_box(pi(black_box(10000)));
+            // black_box(pi(black_box(100)));
+            // let finish_time = hal!().cpu().get_time();
+            //info!("add time {:?}", finish_time - start_time);
             //info!("ns16550a handle irq and read {:?}", ch as char);
         }
         start_time

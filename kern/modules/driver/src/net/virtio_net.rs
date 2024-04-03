@@ -1,6 +1,7 @@
 use super::net_buf::NetBufPtr;
 use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
+use crate::net::virtio::tcp_once;
 use crate::smoltcp_impl::tcp::TcpSocket;
 use crate::smoltcp_impl::{LISTEN_TABLE, SOCKET_SET};
 use crate::{Driver, EthernetAddress, VirtioNet};
@@ -8,6 +9,7 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::net::{Ipv4Addr, SocketAddr};
 use core::time::Duration;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal};
@@ -118,11 +120,25 @@ impl Driver for VirtIoNetMutex {
     }
     fn handle_irq(&self, _irq_num: usize) -> Duration {
         let start_time = hal!().cpu().get_time();
-        SOCKET_SET.get().unwrap().poll_interfaces();
-        let result: Result<(SocketHandle, (IpEndpoint, IpEndpoint))> =
-            LISTEN_TABLE.get().unwrap().accept(LOCAL_PORT);
+        let tcp_socket = TcpSocket::new();
+        tcp_socket
+            .bind(SocketAddr::new(
+                core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                LOCAL_PORT,
+            ))
+            .unwrap();
+        tcp_socket.listen().unwrap();
+        info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
+        let result = loop {
+            SOCKET_SET.get().unwrap().poll_interfaces();
+            let result = LISTEN_TABLE.get().unwrap().accept(LOCAL_PORT);
+            if result.is_err() {
+                continue;
+            } else {
+                break result;
+            }
+        };
         if result.is_ok() {
-            //SOCKET_SET.get().unwrap().poll_interfaces();
             let (a, (b, c)) = result.unwrap();
             let new_socket = TcpSocket::new_connected(a, b, c);
             let addr = new_socket.peer_addr().unwrap();
@@ -136,24 +152,42 @@ impl Driver for VirtIoNetMutex {
                         // closed by remote
                         info!("socket send() failed");
                     } else if socket.can_send() {
-                        // connected, and the tx buffer is not full
-                        // TODO: use socket.send(|buf| {...})
-                        // if let Err(e) = self.inner.lock().recycle_tx_buffers() {
-                        //     warn!("recycle_tx_buffers failed: {:?}", e);
-                        //     return ;
-                        // }
                         let send_content = format!(header!(), CONTENT.len(), CONTENT);
                         let len = socket.send_slice(send_content.as_bytes()).unwrap();
                         info!("len is {}", len);
-                        //SOCKET_SET.get().unwrap().poll_interfaces();
                     } else {
                         // tx buffer is full
                         info!("socket send() failed,tx buffer is full");
                     }
                 });
+            // loop {
+            //     //SOCKET_SET.get().unwrap().poll_interfaces();
+            //     match SOCKET_SET
+            //         .get()
+            //         .unwrap()
+            //         .with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
+            //             if !socket.is_active() || !socket.may_send() {
+            //                 // closed by remote
+            //                 info!("socket send() failed");
+            //                 Err(InternalError::NetFail)
+            //             } else if socket.can_send() {
+            //                 let send_content = format!(header!(), CONTENT.len(), CONTENT);
+            //                 let len = socket.send_slice(send_content.as_bytes()).unwrap();
+            //                 info!("len is {}", len);
+            //                 Ok(len)
+            //             } else {
+            //                 // tx buffer is full
+            //                 info!("socket send() failed,tx buffer is full");
+            //                 Err(InternalError::NetFail)
+            //             }
+            //         }) {
+            //         Ok(t) => break,
+            //         Err(e) => continue,
+            //     };
+            // }
         } else {
             // tcp_once.get().unwrap().0.listen().unwrap();
-            // info!("local port {}", tcp_once.get().unwrap().0.get_state());
+            //info!("local port {}", tcp_once.get().unwrap().0.get_state());
             // info!(
             //     "readable :{}, writable :{}",
             //     tcp_once.get().unwrap().0.poll().unwrap().readable,
@@ -162,9 +196,8 @@ impl Driver for VirtIoNetMutex {
             info!("fail")
             //SOCKET_SET.get().unwrap().poll_interfaces();
         }
-        //info!("local port {}", tcp_once.get().unwrap().0.get_state());
         info!("net driver handler");
-        self.inner.lock().raw.ack_interrupt();
+        //self.inner.lock().raw.ack_interrupt();
         start_time
     }
 }

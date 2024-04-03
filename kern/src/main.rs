@@ -122,7 +122,9 @@ async fn primary_task() {
     //     .unwrap();
     // tcp_socket.listen().unwrap();
     // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
-    // info!("create {:?}", tcp_socket.local_addr());
+    //info!("create {:?}", tcp_socket.local_addr());
+    //jrinx_driver::irq::irq_dispatch::min_count_strategy();
+    //jrinx_driver::irq::irq_dispatch::min_load_strategy();
     spawn!(pri := TaskPriority::new(10)=>async { time_test() });
     yield_now!();
 
@@ -131,7 +133,7 @@ async fn primary_task() {
 }
 pub fn time_test() {
     let start_time = hal!().cpu().get_time();
-    let n = 10000000;
+    let n = 50000000;
     let mut pi_estimate = 0.0;
     let mut sign = 1.0;
     for i in 0..n {
@@ -140,7 +142,7 @@ pub fn time_test() {
     }
     pi_estimate *= 4.0;
     let end_time = hal!().cpu().get_time();
-    info!(
+    warn!(
         "perform {} times,take {:?}, the result is {:?}",
         n,
         end_time - start_time,
@@ -151,10 +153,15 @@ async fn secondary_task() {
     info!("secondary task started");
     let cpu_id = hal!().cpu().id() as u8;
     if cpu_id == 2 {
-        jrinx_driver::irq::irq_dispatch::min_count_strategy();
-        //     spawn!(pri := TaskPriority::new(cpu_id + 10)=>async { time_test() });
-        //     yield_now!();
+        //jrinx_driver::irq::irq_dispatch::min_count_strategy();
+        //jrinx_driver::irq::irq_dispatch::min_load_strategy();
+        spawn!(pri := TaskPriority::new(cpu_id + 10)=>async { time_test() });
+        yield_now!();
     }
+    // if cpu_id == 3{
+    //     jrinx_driver::irq::irq_dispatch::min_count_strategy();
+    //     //jrinx_driver::irq::irq_dispatch::min_load_strategy();
+    // }
 
     loop {}
 }

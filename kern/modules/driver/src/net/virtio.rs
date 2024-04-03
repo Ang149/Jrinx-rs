@@ -85,20 +85,20 @@ fn virtio_device(transport: MmioTransport, interrupt_parent: usize, irq_num: usi
                 .register_device(irq_num, dev.clone())
                 .unwrap();
             init(dev.clone());
-            let tcp_socket = TcpSocket::new();
-            tcp_socket
-                .bind(SocketAddr::new(
-                    core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                    LOCAL_PORT,
-                ))
-                .unwrap();
-            tcp_socket.listen().unwrap();
-            info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
-            info!("create {:?}", tcp_socket.local_addr());
-            tcp_once.call_once(|| (tcp_socket, Mutex::new(false)));
-            VIRTIO_DEVICE.call_once(|| dev.clone());
+            // let tcp_socket = TcpSocket::new();
+            // tcp_socket
+            //     .bind(SocketAddr::new(
+            //         core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            //         LOCAL_PORT,
+            //     ))
+            //     .unwrap();
+            // tcp_socket.listen().unwrap();
+            // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
+            // info!("create {:?}", tcp_socket.local_addr());
+            //tcp_once.call_once(|| (tcp_socket, Mutex::new(false)));
+            //VIRTIO_DEVICE.call_once(|| dev.clone());
         }
         t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
-pub static VIRTIO_DEVICE: Once<Arc<VirtIoNetMutex>> = Once::new();
+//pub static VIRTIO_DEVICE: Once<Arc<VirtIoNetMutex>> = Once::new();

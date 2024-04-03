@@ -1,3 +1,4 @@
+use super::irq_dispatch::IRQ_COUNT;
 use super::irq_manager::IrqManager;
 use crate::io::{Io, Mmio};
 use crate::irq::riscv_intc::IRQ_TABLE;
@@ -239,12 +240,13 @@ impl Driver for Plic {
         let mut inner = self.inner.lock();
         match inner.get_current_cpu_claim() {
             Some(irq_num) => {
+                *IRQ_COUNT.lock().get_mut(&irq_num).unwrap() += 1;
                 let start_time = inner.irq_manager.handle_irq(irq_num);
                 inner.end_of_interrupt(irq_num);
                 start_time
             }
             _ => {
-                warn!("plic claim error");
+                warn!("plic claim zero");
                 return Duration::new(0, 0);
             }
         }
