@@ -161,7 +161,7 @@ impl<'a> RxToken for NetRxToken<'a> {
         F: FnOnce(&mut [u8]) -> R,
     {
         let mut rx_buf = self.1;
-        info!(
+        debug!(
             "RECV {} bytes: {:02X?}",
             rx_buf.packet_len(),
             rx_buf.packet()
@@ -185,7 +185,7 @@ impl<'a> TxToken for NetTxToken<'a> {
         let mut dev = self.0.borrow_mut();
         let mut tx_buf = dev.inner.lock().alloc_tx_buffer(len).unwrap();
         let ret = f(tx_buf.packet_mut());
-        info!("SEND {} bytes: {:02X?}", len, tx_buf.packet());
+        debug!("SEND {} bytes: {:02X?}", len, tx_buf.packet());
         dev.inner.lock().transmit(tx_buf).unwrap();
         ret
     }

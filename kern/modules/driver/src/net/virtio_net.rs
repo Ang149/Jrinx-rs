@@ -90,16 +90,13 @@ impl VirtIoNetMutex {
 const LOCAL_PORT: u16 = 5555;
 const CONTENT: &str = r#"<html>
 <head>
-  <title>Hello, ArceOS</title>
+  <title>Hello, Jrinx</title>
 </head>
 <body>
   <center>
-    <h1>Hello, <a href="https://github.com/rcore-os/arceos">ArceOS</a></h1>
+    <h1>Hello,Jrinx</a></h1>
   </center>
   <hr>
-  <center>
-    <i>Powered by <a href="https://github.com/rcore-os/arceos/tree/main/apps/net/httpserver">ArceOS example HTTP server</a> v0.1.0</i>
-  </center>
 </body>
 </html>
 "#;
@@ -160,44 +157,11 @@ impl Driver for VirtIoNetMutex {
                         info!("socket send() failed,tx buffer is full");
                     }
                 });
-            // loop {
-            //     //SOCKET_SET.get().unwrap().poll_interfaces();
-            //     match SOCKET_SET
-            //         .get()
-            //         .unwrap()
-            //         .with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
-            //             if !socket.is_active() || !socket.may_send() {
-            //                 // closed by remote
-            //                 info!("socket send() failed");
-            //                 Err(InternalError::NetFail)
-            //             } else if socket.can_send() {
-            //                 let send_content = format!(header!(), CONTENT.len(), CONTENT);
-            //                 let len = socket.send_slice(send_content.as_bytes()).unwrap();
-            //                 info!("len is {}", len);
-            //                 Ok(len)
-            //             } else {
-            //                 // tx buffer is full
-            //                 info!("socket send() failed,tx buffer is full");
-            //                 Err(InternalError::NetFail)
-            //             }
-            //         }) {
-            //         Ok(t) => break,
-            //         Err(e) => continue,
-            //     };
-            // }
         } else {
-            // tcp_once.get().unwrap().0.listen().unwrap();
-            //info!("local port {}", tcp_once.get().unwrap().0.get_state());
-            // info!(
-            //     "readable :{}, writable :{}",
-            //     tcp_once.get().unwrap().0.poll().unwrap().readable,
-            //     tcp_once.get().unwrap().0.poll().unwrap().writable
-            // );
             info!("fail")
-            //SOCKET_SET.get().unwrap().poll_interfaces();
         }
         info!("net driver handler");
-        //self.inner.lock().raw.ack_interrupt();
+        self.inner.lock().raw.ack_interrupt();
         start_time
     }
 }

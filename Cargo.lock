@@ -518,7 +518,6 @@ dependencies = [
  "jrinx-loader",
  "jrinx-logging",
  "jrinx-multitask",
- "jrinx-net",
  "jrinx-paging",
  "jrinx-percpu",
  "jrinx-phys-frame",
@@ -677,19 +676,6 @@ dependencies = [
  "log",
  "mtxgroup",
  "riscv",
- "spin 0.9.8",
-]
-
-[[package]]
-name = "jrinx-net"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "jrinx-driver",
- "jrinx-error",
- "jrinx-multitask",
- "log",
- "smoltcp",
  "spin 0.9.8",
 ]
 
@@ -1244,7 +1230,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "virtio-drivers"
 version = "0.7.1"
-source = "git+https://github.com/rcore-os/virtio-drivers.git?rev=4b60f5d#4b60f5d341a7211dfec7382062f965c5433c51c2"
+source = "git+https://github.com/rcore-os/virtio-drivers.git#61ece509c40f32c03378a7a037ef9863ed5deba7"
 dependencies = [
  "bitflags 2.4.2",
  "log",

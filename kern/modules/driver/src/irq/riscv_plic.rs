@@ -240,6 +240,7 @@ impl Driver for Plic {
         let mut inner = self.inner.lock();
         match inner.get_current_cpu_claim() {
             Some(irq_num) => {
+                info!("cpu {} claim irq {}", hal!().cpu().id(), irq_num);
                 *IRQ_COUNT.lock().get_mut(&irq_num).unwrap() += 1;
                 let start_time = inner.irq_manager.handle_irq(irq_num);
                 inner.end_of_interrupt(irq_num);

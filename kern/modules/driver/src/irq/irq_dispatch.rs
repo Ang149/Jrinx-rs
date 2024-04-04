@@ -133,8 +133,7 @@ pub fn min_count_cpu_strategy_event() {
             })
         });
     }
-    let mut min_index = 0;
-    let mut interrupt_count = INTERRUPT_COUNT.get().unwrap().lock();
+    let interrupt_count = INTERRUPT_COUNT.get().unwrap().lock();
     let mut cpu_load: BTreeMap<usize, u32> = BTreeMap::new();
     for i in 0..CPU_COUNT {
         plic_lock
