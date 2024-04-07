@@ -123,7 +123,7 @@ async fn primary_task() {
     // tcp_socket.listen().unwrap();
     // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
     //info!("create {:?}", tcp_socket.local_addr());
-    //jrinx_driver::irq::irq_dispatch::min_count_strategy();
+    jrinx_driver::irq::irq_dispatch::min_count_strategy();
     //jrinx_driver::irq::irq_dispatch::min_load_strategy();
     spawn!(pri := TaskPriority::new(10)=>async { time_test() });
     yield_now!();

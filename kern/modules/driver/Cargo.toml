@@ -22,7 +22,7 @@ jrinx-multitask = {version = "0.1.0",path = "../multitask"}
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 log = { version = "0.4.20", default-features = false }
 spin = "0.9.8"
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers.git"}
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers.git",rev ="61ece509c40f32c03378a7a037ef9863ed5deba7"}
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10.1"
