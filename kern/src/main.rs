@@ -7,8 +7,6 @@
 #![no_std]
 #![no_main]
 
-
-
 use arch::BootInfo;
 use jrinx_hal::{Cpu, Hal};
 use jrinx_multitask::{
@@ -104,18 +102,6 @@ async fn primary_task() {
         }
         core::hint::spin_loop();
     }
-
-    //const LOCAL_PORT: u16 = 5555;
-    // let tcp_socket = TcpSocket::new();
-    // tcp_socket
-    //     .bind(SocketAddr::new(
-    //         core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-    //         LOCAL_PORT,
-    //     ))
-    //     .unwrap();
-    // tcp_socket.listen().unwrap();
-    // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
-    //info!("create {:?}", tcp_socket.local_addr());
     //jrinx_driver::irq::irq_dispatch::min_count_strategy();
     jrinx_driver::irq::irq_dispatch::min_load_strategy();
     spawn!(pri := TaskPriority::new(10)=>async { time_test() });
@@ -151,23 +137,6 @@ async fn secondary_task() {
         spawn!(pri := TaskPriority::new(cpu_id + 10)=>async { time_test() });
         yield_now!();
     }
-    // if cpu_id == 4 {
-    //     use crate::jrinx_hal::Interrupt;
-    //     const LOCAL_PORT: u16 = 5555;
-    //     loop {
-    //         let tcp_socket = TcpSocket::new();
-    //         if tcp_socket.check_bind() {
-    //             tcp_socket
-    //                 .bind(SocketAddr::new(
-    //                     core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-    //                     LOCAL_PORT,
-    //                 ))
-    //                 .unwrap();
-    //             tcp_socket.listen().unwrap();
-    //             hal!().interrupt().wait();
-    //         }
-    //     }
-    // }
 
     loop {}
 }

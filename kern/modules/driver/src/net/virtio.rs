@@ -8,7 +8,6 @@ use jrinx_devprober::devprober;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Hal as _, Vm};
 use jrinx_paging::boot::BootPageTable;
-use spin::{Mutex, Once};
 use virtio_drivers::transport::{
     mmio::{MmioTransport, VirtIOHeader},
     DeviceType, Transport,

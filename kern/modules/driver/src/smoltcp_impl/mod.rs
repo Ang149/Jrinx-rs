@@ -82,7 +82,6 @@ impl InterfaceWrapper {
         let mut iface = self.iface.lock();
         match gateway {
             IpAddress::Ipv4(v4) => iface.routes_mut().add_default_ipv4_route(v4).unwrap(),
-            _ => panic!("IPv6 not supported"),
         };
     }
 
@@ -106,7 +105,7 @@ impl Device for DeviceWrapper {
     type TxToken<'a> = NetTxToken<'a> where Self: 'a;
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-        let mut dev = self.inner.borrow_mut();
+        let dev = self.inner.borrow_mut();
         if let Err(e) = dev.inner.lock().recycle_tx_buffers() {
             warn!("recycle_tx_buffers failed: {:?}", e);
             return None;
@@ -117,10 +116,8 @@ impl Device for DeviceWrapper {
         }
         let rx_buf = match dev.inner.lock().receive() {
             Ok(buf) => buf,
-            Err(err) => {
-                if !matches!(&err, InternalError) {
-                    warn!("receive failed: {:?}", err);
-                }
+            Err(_err) => {
+                //warn!("receive failed: {:?}", err);
                 return None;
             }
         };
@@ -128,7 +125,7 @@ impl Device for DeviceWrapper {
     }
 
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        let mut dev = self.inner.borrow_mut();
+        let dev = self.inner.borrow_mut();
         if let Err(e) = dev.inner.lock().recycle_tx_buffers() {
             warn!("recycle_tx_buffers failed: {:?}", e);
             return None;
@@ -161,7 +158,7 @@ impl<'a> RxToken for NetRxToken<'a> {
         F: FnOnce(&mut [u8]) -> R,
     {
         let mut rx_buf = self.1;
-        debug!(
+        info!(
             "RECV {} bytes: {:02X?}",
             rx_buf.packet_len(),
             rx_buf.packet()
@@ -182,7 +179,7 @@ impl<'a> TxToken for NetTxToken<'a> {
     where
         F: FnOnce(&mut [u8]) -> R,
     {
-        let mut dev = self.0.borrow_mut();
+        let dev = self.0.borrow_mut();
         let mut tx_buf = dev.inner.lock().alloc_tx_buffer(len).unwrap();
         let ret = f(tx_buf.packet_mut());
         debug!("SEND {} bytes: {:02X?}", len, tx_buf.packet());

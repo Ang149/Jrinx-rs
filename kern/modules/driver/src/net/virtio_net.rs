@@ -1,18 +1,15 @@
 use super::net_buf::NetBufPtr;
 use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
-use crate::smoltcp_impl::tcp::TcpSocket;
-use crate::smoltcp_impl::{LISTEN_TABLE, SOCKET_SET};
+// use crate::smoltcp_impl::tcp::TcpSocket;
+use crate::smoltcp_impl::SOCKET_SET;
 use crate::{Driver, EthernetAddress, VirtioNet};
 use alloc::boxed::Box;
-use alloc::format;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::net::{Ipv4Addr, SocketAddr};
 use core::time::Duration;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal};
-use smoltcp::socket::tcp;
 use spin::mutex::Mutex;
 use virtio_drivers::{device::net::VirtIONetRaw, transport::mmio::MmioTransport};
 const NET_BUF_LEN: usize = 1526;
@@ -83,79 +80,13 @@ impl VirtIoNetMutex {
         }
     }
 }
-const LOCAL_PORT: u16 = 5555;
-const CONTENT: &str = r#"<html>
-<head>
-  <title>Hello, Jrinx</title>
-</head>
-<body>
-  <center>
-    <h1>Hello,Jrinx</a></h1>
-  </center>
-  <hr>
-</body>
-</html>
-"#;
-macro_rules! header {
-    () => {
-        "\
-HTTP/1.1 200 OK\r\n\
-Content-Type: text/html\r\n\
-Content-Length: {}\r\n\
-Connection: close\r\n\
-\r\n\
-{}"
-    };
-}
 impl Driver for VirtIoNetMutex {
     fn name(&self) -> &str {
         "virtio-net"
     }
     fn handle_irq(&self, _irq_num: usize) -> Duration {
         let start_time = hal!().cpu().get_time();
-        let tcp_socket = TcpSocket::new();
-        tcp_socket
-            .bind(SocketAddr::new(
-                core::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                LOCAL_PORT,
-            ))
-            .unwrap();
-        tcp_socket.listen().unwrap();
-        info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
-        let result = loop {
-            SOCKET_SET.get().unwrap().poll_interfaces();
-            let result = LISTEN_TABLE.get().unwrap().accept(LOCAL_PORT);
-            if result.is_err() {
-                continue;
-            } else {
-                break result;
-            }
-        };
-        if result.is_ok() {
-            let (a, (b, c)) = result.unwrap();
-            let new_socket = TcpSocket::new_connected(a, b, c);
-            let addr = new_socket.peer_addr().unwrap();
-            info!("addr is {}", addr);
-            let handle = unsafe { new_socket.handle.get().read().unwrap() };
-            SOCKET_SET
-                .get()
-                .unwrap()
-                .with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
-                    if !socket.is_active() || !socket.may_send() {
-                        // closed by remote
-                        info!("socket send() failed");
-                    } else if socket.can_send() {
-                        let send_content = format!(header!(), CONTENT.len(), CONTENT);
-                        let len = socket.send_slice(send_content.as_bytes()).unwrap();
-                        info!("len is {}", len);
-                    } else {
-                        // tx buffer is full
-                        info!("socket send() failed,tx buffer is full");
-                    }
-                });
-        } else {
-            info!("fail")
-        }
+        SOCKET_SET.get().unwrap().poll_interfaces();
         info!("net driver handler");
         self.inner.lock().raw.ack_interrupt();
         start_time
