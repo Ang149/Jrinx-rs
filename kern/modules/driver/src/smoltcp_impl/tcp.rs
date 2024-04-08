@@ -192,6 +192,14 @@ impl TcpSocket {
             })
         }
     }
+    pub fn check_bind(&self) -> bool {
+        let old = unsafe { self.local_addr.get().read() };
+        if old != UNSPECIFIED_ENDPOINT {
+            //info!("socket bind() failed: already bound");
+            return false;
+        }
+        true
+    }
 
     /// Binds an unbound socket to the given address and port.
     ///

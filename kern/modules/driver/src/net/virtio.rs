@@ -1,7 +1,4 @@
-use core::{
-    net::{Ipv4Addr, SocketAddr},
-    ptr::NonNull,
-};
+use core::ptr::NonNull;
 
 use alloc::sync::Arc;
 use fdt::node::FdtNode;
@@ -20,7 +17,7 @@ use virtio_drivers::transport::{
 use crate::{
     irq::riscv_intc::IRQ_TABLE,
     net::virtio_net::{VirtIoNetInner, VirtIoNetMutex},
-    smoltcp_impl::{init, tcp::TcpSocket},
+    smoltcp_impl::init,
 };
 
 #[devprober(compatible = "virtio,mmio")]
@@ -67,8 +64,8 @@ fn probe(node: &FdtNode) -> Result<()> {
 
     Ok(())
 }
-pub(crate) static tcp_once: Once<(TcpSocket, Mutex<bool>)> = Once::new();
-const LOCAL_PORT: u16 = 5555;
+// pub(crate) static TCP_ONCE: Once<(TcpSocket, Mutex<bool>)> = Once::new();
+// const LOCAL_PORT: u16 = 5555;
 fn virtio_device(transport: MmioTransport, interrupt_parent: usize, irq_num: usize) {
     //info!("virtio type is {:?}", transport.device_type());
     match transport.device_type() {
@@ -95,7 +92,7 @@ fn virtio_device(transport: MmioTransport, interrupt_parent: usize, irq_num: usi
             // tcp_socket.listen().unwrap();
             // info!("listen on:http://{}/", tcp_socket.local_addr().unwrap());
             // info!("create {:?}", tcp_socket.local_addr());
-            //tcp_once.call_once(|| (tcp_socket, Mutex::new(false)));
+            // TCP_ONCE.call_once(|| (tcp_socket, Mutex::new(false)));
             //VIRTIO_DEVICE.call_once(|| dev.clone());
         }
         t => warn!("Unrecognized virtio device: {:?}", t),

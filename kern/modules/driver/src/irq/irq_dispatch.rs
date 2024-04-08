@@ -74,8 +74,12 @@ pub fn min_load_strategy_event() {
     let mut cpu_task_pri_vec = Vec::from_iter(cpu_task_priority);
     cpu_task_pri_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
     let mut irq_count_lock = IRQ_COUNT.lock();
-    let mut net_count = *irq_count_lock.get_mut(&8).unwrap();
-    let mut uart_count = *irq_count_lock.get_mut(&10).unwrap();
+    let irq_net_count = irq_count_lock.get_mut(&8).unwrap();
+    let net_count = *irq_net_count;
+    *irq_net_count = 0;
+    let irq_uart_count = irq_count_lock.get_mut(&10).unwrap();
+    let uart_count = *irq_uart_count;
+    *irq_uart_count = 0;
     let net_irq_load = NET_LOAD * net_count;
     let uart_irq_load = UART_LOAD * uart_count;
     if net_irq_load > uart_irq_load {
@@ -85,10 +89,6 @@ pub fn min_load_strategy_event() {
         plic_lock.enable(cpu_task_pri_vec[0].0, 10).unwrap();
         plic_lock.enable(cpu_task_pri_vec[1].0, 8).unwrap();
     }
-    //plic_lock.info();
-    let mut interrupt_count = INTERRUPT_COUNT.get().unwrap().lock();
-    net_count = 0;
-    uart_count = 0;
     min_load_strategy();
 }
 pub fn min_count_strategy() {

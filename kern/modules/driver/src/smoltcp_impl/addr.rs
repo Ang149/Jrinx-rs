@@ -14,7 +14,6 @@ pub const fn from_core_ipaddr(ip: IpAddr) -> IpAddress {
 pub const fn into_core_ipaddr(ip: IpAddress) -> IpAddr {
     match ip {
         IpAddress::Ipv4(ipv4) => IpAddr::V4(unsafe { core::mem::transmute(ipv4.0) }),
-        _ => panic!("IPv6 not supported"),
     }
 }
 

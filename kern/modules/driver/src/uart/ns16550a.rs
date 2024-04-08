@@ -116,7 +116,7 @@ impl NS16550a {
         uart.init().unwrap();
         Self {
             inner: Mutex::new(uart),
-            buffer: Mutex::new(VecDeque::new()),
+            buffer: Mutex::new(VecDeque::with_capacity(32)),
         }
     }
     pub fn write(&self, data: u8) -> Result<()> {
@@ -140,7 +140,6 @@ impl NS16550a {
         self.inner.lock().read()
     }
 }
-use core::hint::black_box;
 use core::time::Duration;
 impl Driver for NS16550a {
     fn name(&self) -> &str {
@@ -157,14 +156,4 @@ impl Driver for NS16550a {
         }
         start_time
     }
-}
-fn pi(n: i64) -> f64 {
-    let mut pi_estimate = 0.0;
-    let mut sign = 1.0;
-    for i in 0..n {
-        pi_estimate += sign / (2.0 * i as f64 + 1.0);
-        sign = -sign;
-    }
-    pi_estimate *= 4.0;
-    pi_estimate
 }

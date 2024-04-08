@@ -12,8 +12,7 @@ use riscv::register::scause::Interrupt;
 use riscv::register::sie;
 use spin::{Mutex, Once, RwLock};
 
-use super::irq_dispatch::rotate_strategy;
-//use super::irq_dispatch:: rotate_strategy;
+// use super::irq_dispatch::rotate_strategy;
 use super::riscv_plic::PLIC_PHANDLE;
 pub static GLOBAL_INTC: Once<Arc<dyn InterruptController>> = Once::new();
 pub static IRQ_TABLE: RwLock<BTreeMap<usize, Arc<Mutex<dyn InterruptController>>>> =

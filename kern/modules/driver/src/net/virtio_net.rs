@@ -1,7 +1,6 @@
 use super::net_buf::NetBufPtr;
 use crate::bus::virtio::VirtioHal;
 use crate::net::net_buf::{NetBuf, NetBufPool};
-use crate::net::virtio::tcp_once;
 use crate::smoltcp_impl::tcp::TcpSocket;
 use crate::smoltcp_impl::{LISTEN_TABLE, SOCKET_SET};
 use crate::{Driver, EthernetAddress, VirtioNet};
@@ -13,11 +12,8 @@ use core::net::{Ipv4Addr, SocketAddr};
 use core::time::Duration;
 use jrinx_error::{InternalError, Result};
 use jrinx_hal::{hal, Cpu, Hal};
-use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp;
-use smoltcp::wire::IpEndpoint;
 use spin::mutex::Mutex;
-use spin::Once;
 use virtio_drivers::{device::net::VirtIONetRaw, transport::mmio::MmioTransport};
 const NET_BUF_LEN: usize = 1526;
 //QS is virtio queue size

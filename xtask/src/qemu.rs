@@ -70,6 +70,7 @@ pub fn run(arg: &QemuArg) -> Option<ExitStatus> {
         })
         .optional(gdb, |qemu| qemu.gdb_server())
         .args(["-device","virtio-net-device,netdev=net0","-netdev","user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555","-object","filter-dump,id=f1,netdev=net0,file=dump.dat"])
+        // .args(["-icount","shift=auto,align=off,sleep=off"])
         .status()
         .ok()
 }

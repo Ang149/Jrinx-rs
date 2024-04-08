@@ -1,9 +1,5 @@
 mod entry;
-
-use core::time::Duration;
-
 use crate::{breakpoint, soft_int, timer_int, GenericContext, TrapReason};
-use alloc::vec::Vec;
 use jrinx_addr::VirtAddr;
 use jrinx_hal::{hal, Cpu, Hal};
 use jrinx_paging::{GenericPagePerm, PagePerm};
@@ -192,10 +188,10 @@ extern "C" fn handle_kern_trap(ctx: &mut Context) {
             let handle_start_time = GLOBAL_INTC.get().unwrap().handle_irq(0);
             let trap_finished_time = hal!().cpu().get_time();
             let process_time = trap_finished_time - trap_start_time;
-            // info!(
-            //     "process time is {:?}, jump time is {:?}, interrupt start time {:?}, finished time {:?}",
-            //     process_time, handle_start_time-trap_start_time,trap_start_time, trap_finished_time
-            // );
+            info!(
+                "process time is {:?}, jump time is {:?}, interrupt start time {:?}, finished time {:?}",
+                process_time, handle_start_time-trap_start_time,trap_start_time, trap_finished_time
+            );
         }
     }
 }

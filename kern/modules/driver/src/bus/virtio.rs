@@ -11,7 +11,7 @@ pub struct VirtioHal;
 unsafe impl Hal for VirtioHal {
     fn dma_alloc(
         pages: usize,
-        direction: virtio_drivers::BufferDirection,
+        _direction: virtio_drivers::BufferDirection,
     ) -> (virtio_drivers::PhysAddr, core::ptr::NonNull<u8>) {
         let layout = Layout::from_size_align(pages * PAGE_SIZE, PAGE_SIZE).unwrap();
         let ptr = Global.allocate_zeroed(layout);
@@ -29,7 +29,7 @@ unsafe impl Hal for VirtioHal {
     }
 
     unsafe fn dma_dealloc(
-        paddr: virtio_drivers::PhysAddr,
+        _paddr: virtio_drivers::PhysAddr,
         vaddr: core::ptr::NonNull<u8>,
         pages: usize,
     ) -> i32 {
@@ -39,23 +39,23 @@ unsafe impl Hal for VirtioHal {
     }
     unsafe fn mmio_phys_to_virt(
         paddr: virtio_drivers::PhysAddr,
-        size: usize,
+        _size: usize,
     ) -> core::ptr::NonNull<u8> {
         NonNull::new((paddr + REMAP_MEM_OFFSET) as *mut _).unwrap()
     }
 
     unsafe fn share(
         buffer: core::ptr::NonNull<[u8]>,
-        direction: virtio_drivers::BufferDirection,
+        _direction: virtio_drivers::BufferDirection,
     ) -> virtio_drivers::PhysAddr {
         let vaddr = buffer.as_ptr() as *mut u8 as usize;
         vaddr - REMAP_MEM_OFFSET
     }
 
     unsafe fn unshare(
-        paddr: virtio_drivers::PhysAddr,
-        buffer: core::ptr::NonNull<[u8]>,
-        direction: virtio_drivers::BufferDirection,
+        _paddr: virtio_drivers::PhysAddr,
+        _buffer: core::ptr::NonNull<[u8]>,
+        _direction: virtio_drivers::BufferDirection,
     ) {
     }
 }
